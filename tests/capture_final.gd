@@ -5,6 +5,13 @@ const MAIN_SCENE: PackedScene = preload("res://main.tscn")
 func _ready() -> void:
 	GameState._reset_for_test()
 	GameState.unlocked_count = 8
+	var mission_two_cells: Array[float] = []
+	mission_two_cells.resize(CorruptionDirector.GRID_WIDTH * CorruptionDirector.GRID_HEIGHT)
+	mission_two_cells.fill(0.86)
+	for y: int in range(5, 13):
+		for x: int in range(5, 15):
+			mission_two_cells[y * CorruptionDirector.GRID_WIDTH + x] = 0.08 + float((x + y) % 3) * 0.04
+	GameState.garden_states["1"] = {"cells": mission_two_cells, "purity": 0.76}
 	GameState.select_mission(7)
 	var game := MAIN_SCENE.instantiate()
 	add_child(game)

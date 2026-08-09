@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource path="res://tests/capture_rank_silhouette.gd" type="Script" id="1"]
+
+[node name="RankSilhouetteCapture" type="Node3D"]
+script = ExtResource("1")

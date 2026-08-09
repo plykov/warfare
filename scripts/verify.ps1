@@ -37,7 +37,7 @@ $checks = @(
     @{
         Name = "unit"
         Scene = "res://tests/test_runner.tscn"
-        Marker = "GARDEN RECLAIMED TESTS: 31 passed"
+        Marker = "GARDEN RECLAIMED TESTS: 35 passed"
     },
     @{
         Name = "gameplay-smoke"

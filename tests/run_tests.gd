@@ -1,5 +1,7 @@
 extends Node
 
+const COMBAT_FEEDBACK_SCRIPT: Script = preload("res://world/combat_feedback.gd")
+
 var failures: Array[String] = []
 
 func _ready() -> void:
@@ -13,6 +15,7 @@ func _run() -> void:
 	_test_commission_gate()
 	_test_rank_identity()
 	_test_mission_catalog()
+	_test_campaign_content_completeness()
 	_test_campaign_unlock_and_rank()
 	_test_objective_primitives()
 	_test_mission_objective_composition()
@@ -23,8 +26,11 @@ func _run() -> void:
 	_test_boss_catalog()
 	_test_pause_lifecycle()
 	_test_garden_snapshot_round_trip()
+	_test_cross_mission_restoration_legacy()
+	_test_polish_cue_profiles()
 	_test_v2_save_migration()
 	_test_rank_doctrine_profiles()
+	_test_rank_world_readability()
 	_test_debug_console_commands()
 	_test_sevenfold_authority_gate()
 	_test_three_law_legislation()
@@ -40,7 +46,7 @@ func _run() -> void:
 	_test_uncapped_strafe_acceleration()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 31 passed")
+		print("GARDEN RECLAIMED TESTS: 35 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -103,6 +109,26 @@ func _test_mission_catalog() -> void:
 		for objective_id: String in mission.objective_ids:
 			_assert(StringName(objective_id) in allowed, "Mission objectives must use one of the six primitives")
 
+func _test_campaign_content_completeness() -> void:
+	var objective_coverage: Dictionary = {}
+	var content_fingerprints: Dictionary = {}
+	for index: int in range(1, GameState.MISSION_PATHS.size()):
+		var mission := load(GameState.MISSION_PATHS[index]) as MissionResource
+		_assert(mission != null, "M11 commissions 02-08 must remain loadable data resources")
+		if mission == null:
+			continue
+		_assert(not mission.title.is_empty() and not mission.briefing.is_empty() and not mission.scripture_reference.is_empty(), "Every M11 commission must author title, briefing, and reference content")
+		_assert(mission.intercessor_cues_are_valid() and mission.intercessor_cue_times.size() >= 3, "Every M11 commission must author a complete voice timeline")
+		_assert(mission.intercessor_cue_actions[0] == "VOICE", "Every M11 commission must open with authored Intercessor direction")
+		for line: String in mission.intercessor_cue_lines:
+			_assert(not line.is_empty(), "Authored Intercessor cues must never contain blank dialogue")
+		for objective_id: String in mission.objective_ids:
+			objective_coverage[StringName(objective_id)] = true
+		var fingerprint: String = "%s/%s/%s/%s" % [mission.mission_id, mission.corruption_pattern, mission.objective_ids, mission.garden_color]
+		content_fingerprints[fingerprint] = true
+	_assert(objective_coverage.size() == 6, "Missions 02-08 must exercise all six locked objective primitives")
+	_assert(content_fingerprints.size() == 7, "Missions 02-08 must remain seven distinct authored data records")
+
 func _test_campaign_unlock_and_rank() -> void:
 	GameState._reset_for_test()
 	GameState.phase = GameState.Phase.PLAYING
@@ -159,16 +185,20 @@ func _test_legacy_save_migration() -> void:
 
 func _test_weapon_identity_catalog() -> void:
 	var seen: Dictionary = {}
+	var bow: WeaponResource
 	for path: String in WeaponManager.WEAPON_PATHS:
 		var weapon := load(path) as WeaponResource
 		_assert(weapon != null, "Every manifestation resource must load")
 		if weapon == null:
 			continue
 		seen[weapon.weapon_id] = true
+		if weapon.weapon_id == &"drawn_bow":
+			bow = weapon
 		_assert(not weapon.role.is_empty(), "Every manifestation must declare a tactical role")
 		_assert(not weapon.counterplay.is_empty(), "Every manifestation must explain its counterplay")
 		_assert(not weapon.secondary_name.is_empty(), "Every manifestation must name its alternate expression")
 	_assert(seen.size() == 12, "All twelve carried manifestations must remain distinct")
+	_assert(bow != null and bow.damage_type == &"precision", "Drawn Bow must remain precision context rather than bypassing kinetic-only counterplay")
 
 func _test_boss_catalog() -> void:
 	var bosses: int = 0
@@ -215,6 +245,29 @@ func _test_garden_snapshot_round_trip() -> void:
 	GameState._reset_for_test()
 	IntercessorSystem._reset_for_test()
 
+func _test_cross_mission_restoration_legacy() -> void:
+	var cell_count: int = CorruptionDirector.GRID_WIDTH * CorruptionDirector.GRID_HEIGHT
+	var mission_two_cells: Array[float] = []
+	mission_two_cells.resize(cell_count)
+	mission_two_cells.fill(0.82)
+	mission_two_cells[73] = 0.08
+	var future_cells: Array[float] = []
+	future_cells.resize(cell_count)
+	future_cells.fill(0.0)
+	var legacy: Dictionary = GameState.build_legacy_garden_state(6, {
+		"1": {"cells": mission_two_cells, "purity": 0.74},
+		"7": {"cells": future_cells, "purity": 1.0}
+	})
+	_assert(int(legacy.get("source_count", 0)) == 1, "Mission 7 must inherit completed gardens, never future commission state")
+	_assert(is_equal_approx(float((legacy.get("cells", []) as Array)[73]), 0.08), "A zone restored in mission 2 must still be green in mission 7")
+	_assert(AudioDirector.restoration_stem_gain(1, float(legacy.get("mean_purity", 0.0))) > 0.0, "Persistent garden memory must add an audible restoration stem")
+
+func _test_polish_cue_profiles() -> void:
+	_assert(COMBAT_FEEDBACK_SCRIPT.instance_count_for(&"restoration_burst") == 12, "Mission completion must produce a generous restoration burst")
+	_assert(COMBAT_FEEDBACK_SCRIPT.instance_count_for(&"authority_ring") == 3, "Declaration must render as a layered authority ring")
+	_assert(COMBAT_FEEDBACK_SCRIPT.instance_count_for(&"law_grid") == 4, "Legislation must visibly establish a territorial grid")
+	_assert(AudioDirector.cue_voice_layer_count(&"ariel") == 3 and AudioDirector.cue_voice_layer_count(&"intercessor") == 2, "ARIEL and the human Intercessor must have distinct procedural voice signatures")
+
 func _test_v2_save_migration() -> void:
 	GameState._reset_for_test()
 	GameState._apply_progress_data({"save_version": 2, "selected_mission": 2, "unlocked_count": 4, "completed": ["0", "1"], "mission_records": {"0": {"attempts": 2, "clears": 1}}})
@@ -231,6 +284,19 @@ func _test_rank_doctrine_profiles() -> void:
 	EventBus.rank_override_requested.emit(7)
 	_assert(RankSystem.weapon_tier() == 3, "One of the Seven must manifest weapon tier 3")
 	_assert(RankSystem.damage_resistance() > 0.2, "Capstone doctrine must provide a meaningful ward")
+	RankSystem._reset_for_test()
+
+func _test_rank_world_readability() -> void:
+	var previous_span: float = 0.0
+	for index: int in range(8):
+		var span: float = RankManifestation.silhouette_span_for_rank(index)
+		_assert(span > previous_span, "Each rank must widen Ariel's world silhouette")
+		previous_span = span
+	_assert(RankManifestation.silhouette_span_for_rank(7) >= RankManifestation.silhouette_span_for_rank(0) * 3.0, "Rank 8 must remain unmistakable from rank 1 at long range")
+	EventBus.rank_override_requested.emit(6)
+	_assert(RankSystem.host_formation_size() == 5, "Archangel must call an expanded Host formation")
+	EventBus.rank_override_requested.emit(7)
+	_assert(RankSystem.host_formation_size() == 7, "One of the Seven must call a seven-member Host formation")
 	RankSystem._reset_for_test()
 
 func _test_debug_console_commands() -> void:
@@ -295,6 +361,8 @@ func _test_faction_combat_profiles() -> void:
 	var demon := EnemyBase.new()
 	_assert(fallen.uses_projectiles, "Fallen enemies must provide the campaign's ranged projectile pressure")
 	_assert(not synthetic.spreads_corruption, "Synthetic enemies must remain fabricated rather than corrupting ground")
+	_assert(synthetic.can_take_damage(&"kinetic"), "Synthetic enemies must accept kinetic manifestations")
+	_assert(not synthetic.can_take_damage(&"explosive") and not synthetic.can_take_damage(&"purify"), "Synthetic enemies must reject every non-kinetic damage context")
 	_assert(demon.spreads_corruption and not demon.uses_projectiles, "Demons must retain objective pressure as their distinct combat profile")
 	fallen.free()
 	synthetic.free()

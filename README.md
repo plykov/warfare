@@ -4,6 +4,22 @@ A playable Godot 4.4 campaign slice of a Quake-style territorial FPS where death
 
 You are **ARIEL**, a Seraph-class servant-warrior. Incoming damage drains Glory instead of health. At zero Glory ARIEL becomes **Veiled**: slower, dimmed, and unable to purify the garden. Corruption keeps spreading, and the mission fails only if it reclaims the Thin Place at the garden's heart.
 
+## v0.7.0 — The Full Commission
+
+- Missions 02–08 now have an explicit data-only completion contract covering every objective primitive, authored briefing, scripture reference, palette, corruption layout, and voice timeline.
+- Final-commission tuning guarantees the expert balance profile can meet every authored purity target while keeping the last two commissions sharply demanding for novice and skilled profiles.
+- Prayer, declaration, legislation, and mission victory gain distinct world-space authority VFX with reduced-flash support.
+- ARIEL and the human Intercessor now have separate three-layer and two-layer procedural voice signatures with speaker-aware subtitle timing.
+- CI runs 35 deterministic tests plus full gameplay, campaign, balance, exported-executable, and Windows package verification.
+
+## v0.6.0 — Ranks, Matter, and Memory
+
+- All eight ranks now have a monotonically widening world silhouette; One of the Seven manifests a cloud mantle, rainbow crown, fire pillars, and a seven-member Host formation.
+- Fabricated Synthetics are strictly kinetic-only. Every invalid hit ricochets visibly and audibly while the HUD names Sickle, Chariot, and Millstone as the valid context.
+- Earlier mission gardens are composited into later commissions as a persistent GPU-instanced legacy bloom without changing the active corruption simulation.
+- Purity now crossfades generated corrupt, tonal, water, birdsong, and saved-garden chord layers; Veiled still ducks the field to near-silence.
+- CI runs 33 deterministic tests, including direct M8, M9, and M10 acceptance contracts.
+
 ## v0.5.0 — Phase One Closeout
 
 - Every commission now starts from a deterministic authored corruption silhouette rather than shared random edge noise.

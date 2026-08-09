@@ -58,6 +58,7 @@ func start_game() -> void:
 	EventBus.restoration_state_changed.emit(completed.size())
 	EventBus.mission_selected.emit(selected_mission, mission)
 	EventBus.campaign_garden_state_loaded.emit(selected_mission, garden_states.get(str(selected_mission), {}).duplicate(true))
+	EventBus.campaign_legacy_garden_loaded.emit(selected_mission, build_legacy_garden_state(selected_mission, garden_states))
 	EventBus.campaign_pride_loaded.emit(campaign_pride)
 	EventBus.game_started.emit()
 	EventBus.game_phase_changed.emit(&"PLAYING")
@@ -99,6 +100,39 @@ func current_mission() -> MissionResource:
 	if selected_mission < 0 or selected_mission >= MISSION_PATHS.size():
 		return null
 	return load(MISSION_PATHS[selected_mission]) as MissionResource
+
+static func build_legacy_garden_state(mission_index: int, gardens: Dictionary) -> Dictionary:
+	var cell_count: int = CorruptionDirector.GRID_WIDTH * CorruptionDirector.GRID_HEIGHT
+	var composite: Array[float] = []
+	composite.resize(cell_count)
+	composite.fill(1.0)
+	var source_count: int = 0
+	var purity_total: float = 0.0
+	var mission_indices: Array[int] = []
+	for raw_key: Variant in gardens.keys():
+		var source_index: int = int(str(raw_key))
+		if source_index >= mission_index:
+			continue
+		var raw_state: Variant = gardens.get(str(raw_key), gardens.get(raw_key, {}))
+		if not raw_state is Dictionary:
+			continue
+		var state := raw_state as Dictionary
+		var raw_cells: Variant = state.get("cells", [])
+		if not raw_cells is Array or (raw_cells as Array).size() != cell_count:
+			continue
+		var cells := raw_cells as Array
+		for cell_index: int in range(cell_count):
+			composite[cell_index] = minf(composite[cell_index], clampf(float(cells[cell_index]), 0.0, 1.0))
+		source_count += 1
+		purity_total += clampf(float(state.get("purity", 0.0)), 0.0, 1.0)
+		mission_indices.append(source_index)
+	mission_indices.sort()
+	return {
+		"cells": composite if source_count > 0 else [],
+		"source_count": source_count,
+		"mean_purity": purity_total / float(source_count) if source_count > 0 else 0.0,
+		"mission_indices": mission_indices
+	}
 
 func select_mission(index: int) -> bool:
 	if phase != Phase.TITLE or index < 0 or index >= unlocked_count or index >= MISSION_PATHS.size():
