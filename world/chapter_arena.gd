@@ -10,6 +10,9 @@ const CHAPTER_TINTS: Array[Color] = [
 	Color(0.48, 0.25, 0.08), Color(0.18, 0.25, 0.45), Color(0.38, 0.16, 0.36), Color(0.5, 0.22, 0.14)
 ]
 
+static var _detail_noise_texture: NoiseTexture2D
+static var _detail_normal_texture: NoiseTexture2D
+
 var chapter_index: int = 0
 
 func _ready() -> void:
@@ -90,6 +93,37 @@ static func _paired_steps(left: Vector3, right: Vector3) -> Array[Dictionary]:
 static func _box(position: Vector3, size: Vector3, glow: float = 0.0) -> Dictionary:
 	return {"position": position, "size": size, "glow": glow}
 
+static func _shared_detail_texture() -> NoiseTexture2D:
+	if _detail_noise_texture == null:
+		var noise := FastNoiseLite.new()
+		noise.noise_type = FastNoiseLite.TYPE_PERLIN
+		noise.frequency = 0.075
+		var texture := NoiseTexture2D.new()
+		texture.noise = noise
+		texture.width = 64
+		texture.height = 64
+		texture.seamless = true
+		texture.generate_mipmaps = true
+		var range_ramp := Gradient.new()
+		range_ramp.set_color(0, Color(0.78, 0.78, 0.78))
+		range_ramp.set_color(1, Color.WHITE)
+		texture.color_ramp = range_ramp
+		_detail_noise_texture = texture
+	return _detail_noise_texture
+
+static func _shared_normal_texture() -> NoiseTexture2D:
+	if _detail_normal_texture == null:
+		var texture := NoiseTexture2D.new()
+		texture.noise = _shared_detail_texture().noise
+		texture.width = 64
+		texture.height = 64
+		texture.seamless = true
+		texture.generate_mipmaps = true
+		texture.as_normal_map = true
+		texture.bump_strength = 0.7
+		_detail_normal_texture = texture
+	return _detail_normal_texture
+
 func _add_structure(at: Vector3, size: Vector3, tint: Color, glow: float) -> void:
 	var body := StaticBody3D.new()
 	body.add_to_group("arena_structures")
@@ -108,6 +142,14 @@ func _add_structure(at: Vector3, size: Vector3, tint: Color, glow: float) -> voi
 	material.albedo_color = tint.darkened(0.48)
 	material.metallic = 0.28
 	material.roughness = 0.78
+	material.roughness_texture = _shared_detail_texture()
+	material.detail_enabled = true
+	material.detail_albedo = _shared_detail_texture()
+	material.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+	material.normal_enabled = true
+	material.normal_texture = _shared_normal_texture()
+	material.normal_scale = 0.36
+	material.uv1_scale = Vector3(5.0, 5.0, 5.0)
 	material.emission_enabled = glow > 0.0
 	material.emission = tint.darkened(0.2)
 	material.emission_energy_multiplier = glow * 0.7
