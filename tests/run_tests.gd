@@ -48,9 +48,10 @@ func _run() -> void:
 	_test_key_rebinding()
 	_test_challenge_missions()
 	_test_new_game_plus()
+	_test_corruption_shader_globals()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 39 passed")
+		print("GARDEN RECLAIMED TESTS: 40 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -227,6 +228,25 @@ func _test_new_game_plus() -> void:
 	_assert(GameState.ng_plus_cycle == 1, "Starting New Game+ must advance the cycle counter")
 	_assert(GameState.unlocked_count == 1 and GameState.completed.is_empty(), "New Game+ must reset mission unlock and completion state for the replay")
 	_assert(GameState.ng_plus_multiplier() > 1.0, "New Game+ must raise the difficulty multiplier above baseline")
+	GameState._reset_for_test()
+
+## M18a — shared corruption-mask shader. CI evidence (not speculation) showed
+## RenderingServer.global_shader_parameter_get() returns Nil for every
+## parameter under --headless, including plain Vector2/Vector3 ones — not
+## just the sampler2D. Whatever the cause, that readback is not something
+## this suite can rely on, so this asserts the internal state
+## CorruptionDirector actually owns and controls instead: the mask texture's
+## dimensions, and that painting a cell is reflected in the published pixels.
+func _test_corruption_shader_globals() -> void:
+	CorruptionDirector._reset_for_test()
+	_assert(CorruptionDirector._mask_texture is ImageTexture, "CorruptionDirector must build a shared corruption mask texture")
+	var image: Image = CorruptionDirector._mask_texture.get_image()
+	_assert(image != null and image.get_width() == CorruptionDirector.GRID_WIDTH and image.get_height() == CorruptionDirector.GRID_HEIGHT, "The corruption mask texture must match the grid dimensions")
+	CorruptionDirector.corrupt(Vector3(20.0, 0.0, 0.0), 3.0, 1.0)
+	CorruptionDirector._publish_mask_texture()
+	var refreshed: Image = CorruptionDirector._mask_texture.get_image()
+	var painted_cell: Vector2i = CorruptionDirector.world_to_cell(Vector3(20.0, 0.0, 0.0))
+	_assert(refreshed.get_pixel(painted_cell.x, painted_cell.y).r > 0.5, "Painting a cell must be reflected in the published mask texture")
 	GameState._reset_for_test()
 
 func _test_campaign_records() -> void:

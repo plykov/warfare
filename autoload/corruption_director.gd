@@ -21,6 +21,10 @@ var _dirty_cells: Dictionary = {}
 var _held_zones: Dictionary = {}
 var last_spread_evaluated: int = 0
 
+## M18a — shared corruption-mask shader. See world/shaders/corruption.gdshader.
+var _mask_image: Image
+var _mask_texture: ImageTexture
+
 func _ready() -> void:
 	EventBus.game_started.connect(_on_game_started)
 	EventBus.purification_requested.connect(purify)
@@ -33,9 +37,37 @@ func _ready() -> void:
 	EventBus.restoration_state_changed.connect(_on_restoration_state_changed)
 	EventBus.campaign_snapshot_requested.connect(_on_campaign_snapshot_requested)
 	EventBus.campaign_garden_state_loaded.connect(_on_campaign_garden_state_loaded)
+	_register_shader_globals()
+
+## Registers the global shader uniforms once per process. Done here in code
+## rather than in project.godot's [shader_globals] section — this repo has
+## no Godot binary available to verify that hand-authored serialization
+## against, and RenderingServer calls are ordinary, headlessly-testable
+## GDScript.
+func _register_shader_globals() -> void:
+	_mask_image = Image.create(GRID_WIDTH, GRID_HEIGHT, false, Image.FORMAT_R8)
+	_mask_texture = ImageTexture.create_from_image(_mask_image)
+	RenderingServer.global_shader_parameter_add(&"corruption_mask", RenderingServer.GLOBAL_VAR_TYPE_SAMPLER2D, _mask_texture)
+	RenderingServer.global_shader_parameter_add(&"corruption_world_origin", RenderingServer.GLOBAL_VAR_TYPE_VEC3, Vector3.ZERO)
+	RenderingServer.global_shader_parameter_add(&"corruption_world_size", RenderingServer.GLOBAL_VAR_TYPE_VEC2, Vector2(GRID_WIDTH, GRID_HEIGHT) * CELL_SIZE)
+	RenderingServer.global_shader_parameter_add(&"corruption_pure_color", RenderingServer.GLOBAL_VAR_TYPE_VEC3, Vector3(0.035, 0.23, 0.075))
+	RenderingServer.global_shader_parameter_add(&"corruption_high_contrast", RenderingServer.GLOBAL_VAR_TYPE_BOOL, false)
+	EventBus.settings_changed.connect(_on_settings_changed_for_shader)
+	_on_settings_changed_for_shader(SettingsState.values)
+
+func _on_settings_changed_for_shader(values: Dictionary) -> void:
+	RenderingServer.global_shader_parameter_set(&"corruption_high_contrast", bool(values.get(&"high_contrast", false)))
+
+func _publish_mask_texture() -> void:
+	for y: int in range(GRID_HEIGHT):
+		for x: int in range(GRID_WIDTH):
+			var v: float = cells[_index(x, y)]
+			_mask_image.set_pixel(x, y, Color(v, v, v))
+	_mask_texture.set_image(_mask_image)
 
 func initialize(field_origin: Vector3 = Vector3.ZERO) -> void:
 	origin = field_origin
+	RenderingServer.global_shader_parameter_set(&"corruption_world_origin", origin)
 	cells.resize(GRID_WIDTH * GRID_HEIGHT)
 	for y: int in range(GRID_HEIGHT):
 		for x: int in range(GRID_WIDTH):
@@ -152,6 +184,7 @@ func anchor_corruption() -> float:
 	return sample(Vector3.ZERO)
 
 func _emit_state() -> void:
+	_publish_mask_texture()
 	EventBus.corruption_field_changed.emit(cells.duplicate(), GRID_WIDTH, GRID_HEIGHT, purity(), anchor_corruption())
 
 func _index(x: int, y: int) -> int:
@@ -234,6 +267,8 @@ func _on_mission_selected(_index: int, mission: Resource) -> void:
 		_corruption_bias = mission_data.corruption_bias
 		_corruption_pattern = StringName(mission_data.corruption_pattern)
 		_corruption_seed = mission_data.corruption_seed
+		var garden_color: Color = mission_data.garden_color
+		RenderingServer.global_shader_parameter_set(&"corruption_pure_color", Vector3(garden_color.r, garden_color.g, garden_color.b))
 	initialize(Vector3.ZERO)
 
 func _on_restoration_state_changed(completed_count: int) -> void:

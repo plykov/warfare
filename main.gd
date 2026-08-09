@@ -10,9 +10,9 @@ const PRINCE_SCRIPT: Script = preload("res://enemies/territorial_prince.gd")
 const HOSTILE_PROJECTILE_SCRIPT: Script = preload("res://enemies/hostile_projectile.gd")
 const SLIPPERY_FIELD_SCRIPT: Script = preload("res://world/slippery_field.gd")
 const CHAPTER_ARENA_SCRIPT: Script = preload("res://world/chapter_arena.gd")
+const CORRUPTION_SHADER: Shader = preload("res://world/shaders/corruption.gdshader")
 
 var _tiles: Array[MeshInstance3D] = []
-var _tile_materials: Array[StandardMaterial3D] = []
 var _blooms: Dictionary = {}
 var _spawn_timer: float = 0.0
 var _spawned_fallen: bool = false
@@ -22,7 +22,6 @@ var _threat_timer: float = 0.0
 var _player: ArielController
 var _mission: MissionResource = preload("res://missions/data/mission_01.tres")
 var _environment: Environment
-var _garden_color: Color = Color(0.035, 0.23, 0.075)
 var _mission_fog_color: Color = Color(0.08, 0.1, 0.11)
 var _encounter_intensity: float = 0.0
 var _last_wave: int = 0
@@ -45,7 +44,6 @@ func _ready() -> void:
 	EventBus.mission_selected.connect(_on_mission_selected)
 	EventBus.encounter_state_changed.connect(_on_encounter_state_changed)
 	EventBus.boss_spawn_requested.connect(_on_boss_spawn_requested)
-	EventBus.settings_changed.connect(_on_settings_changed)
 	EventBus.restoration_feedback_changed.connect(_on_restoration_feedback_changed)
 	EventBus.sevenfold_granted.connect(_on_sevenfold_granted)
 	EventBus.debug_spawn_requested.connect(_on_debug_spawn_requested)
@@ -168,26 +166,26 @@ func _add_pillar(position: Vector3, height: float) -> void:
 	body.add_child(mesh_instance)
 	add_child(body)
 
+## M18a — every tile shares ONE ShaderMaterial reading the global
+## corruption_mask texture CorruptionDirector publishes; ground color no
+## longer needs a per-tile CPU write every time the field changes (see
+## _on_corruption_changed below, which now only drives the bloom props).
 func _build_corruption_tiles() -> void:
 	var tile_mesh := BoxMesh.new()
 	tile_mesh.size = Vector3(CorruptionDirector.CELL_SIZE - 0.08, 0.12, CorruptionDirector.CELL_SIZE - 0.08)
 	var bloom_mesh := PrismMesh.new()
 	bloom_mesh.size = Vector3(0.12, 0.55, 0.12)
+	var ground_material := ShaderMaterial.new()
+	ground_material.shader = CORRUPTION_SHADER
 	for y: int in range(CorruptionDirector.GRID_HEIGHT):
 		for x: int in range(CorruptionDirector.GRID_WIDTH):
 			var index: int = y * CorruptionDirector.GRID_WIDTH + x
 			var tile := MeshInstance3D.new()
 			tile.mesh = tile_mesh
 			tile.position = CorruptionDirector.cell_to_world(x, y) + Vector3(0.0, -0.08, 0.0)
-			var material := StandardMaterial3D.new()
-			material.albedo_color = Color(0.02, 0.012, 0.026)
-			material.roughness = 0.88
-			material.emission_enabled = true
-			material.emission = Color(0.0, 0.0, 0.0)
-			tile.material_override = material
+			tile.material_override = ground_material
 			add_child(tile)
 			_tiles.append(tile)
-			_tile_materials.append(material)
 			if index % 4 == 0:
 				var bloom := MeshInstance3D.new()
 				bloom.mesh = bloom_mesh
@@ -256,16 +254,12 @@ func _edge_spawn_position() -> Vector3:
 
 func _on_corruption_changed(values: PackedFloat32Array, _width: int, _height: int, purity: float, _anchor: float) -> void:
 	_latest_purity = purity
-	var pure_color := _garden_color
-	var corrupt_color := Color(0.42, 0.0, 0.52) if bool(SettingsState.get_value(&"high_contrast")) else Color(0.006, 0.002, 0.009)
-	var holy_glow := Color(0.035, 0.13, 0.028)
+	# Tile color/emission is now read straight off CorruptionDirector's
+	# published shader texture (world/shaders/corruption.gdshader) — only
+	# the bloom props still need a per-cell CPU update.
 	for index: int in range(mini(values.size(), _tiles.size())):
-		var corruption: float = values[index]
-		var material: StandardMaterial3D = _tile_materials[index]
-		material.albedo_color = pure_color.lerp(corrupt_color, smoothstep(0.18, 0.82, corruption))
-		material.emission = holy_glow * maxf(0.0, 0.48 - corruption)
-		material.emission_energy_multiplier = 1.8
 		if _blooms.has(index):
+			var corruption: float = values[index]
 			var bloom: MeshInstance3D = _blooms[index]
 			var growth: float = clampf((0.5 - corruption) * 2.0, 0.0, 1.0)
 			bloom.scale = Vector3(1.0, growth, 1.0) * growth
@@ -283,7 +277,6 @@ func _on_mission_selected(_index: int, mission: Resource) -> void:
 	if mission_data == null:
 		return
 	_mission = mission_data
-	_garden_color = mission_data.garden_color
 	_mission_fog_color = mission_data.fog_color
 	if _environment != null:
 		_environment.fog_light_color = mission_data.fog_color
@@ -350,7 +343,3 @@ func _reset_run() -> void:
 	PrideSystem._reset_for_test()
 	CorruptionDirector._reset_for_test()
 	EncounterDirector._reset_for_test()
-
-func _on_settings_changed(_values: Dictionary) -> void:
-	# The next authoritative corruption field tick repaints every tile.
-	pass
