@@ -13,6 +13,26 @@ $godotExecutable = Resolve-GodotExecutable -Godot $Godot
 
 New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
 
+$importLogPath = Join-Path $logDirectory "import.log"
+$importArguments = @(
+    "--headless",
+    "--path",
+    ('"{0}"' -f $projectRoot),
+    "--log-file",
+    ('"{0}"' -f $importLogPath),
+    "--import"
+)
+
+Write-Host "Importing project metadata..."
+$importProcess = Start-Process -FilePath $godotExecutable -ArgumentList $importArguments -WindowStyle Hidden -Wait -PassThru
+$classCachePath = Join-Path $projectRoot ".godot\global_script_class_cache.cfg"
+if ($importProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $classCachePath -PathType Leaf)) {
+    if (Test-Path -LiteralPath $importLogPath) {
+        Get-Content -Tail 200 -LiteralPath $importLogPath | ForEach-Object { Write-Host $_ }
+    }
+    throw "Godot project import failed to create the global script class cache."
+}
+
 $checks = @(
     @{
         Name = "unit"
