@@ -148,7 +148,6 @@ func _on_bind_requested(target: Node, duration: float) -> void:
 func _on_mark_requested(target: Node, duration: float) -> void:
 	if target == self:
 		marked_remaining = duration
-		EventBus.message_posted.emit("TARGET SEALED FOR THE HOST", &"info")
 
 func _defeat() -> void:
 	EventBus.enemy_defeated.emit(kind, global_position)

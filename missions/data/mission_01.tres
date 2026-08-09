@@ -5,6 +5,13 @@
 [resource]
 script = ExtResource("1")
 mission_id = &"FIRST_GROUND"
+corruption_pattern = "EDGE_RING"
+corruption_seed = 101
+intercessor_cue_times = PackedFloat32Array(4, 18, 36)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "DECLARE")
+intercessor_cue_arguments = PackedStringArray("", "", "")
+intercessor_cue_durations = PackedFloat32Array(0, 6, 0)
+intercessor_cue_lines = PackedStringArray("The first ground is not lost. Hold what has been entrusted.", "I am praying; let the garden answer with you.", "The word is given. Rebuke what will not yield to strength.")
 chapter = 1
 title = "The First Ground"
 briefing = "The western garden is almost lost. Reclaim the soil and keep the central Thin Place from the tide."

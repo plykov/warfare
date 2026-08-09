@@ -4,6 +4,15 @@ A playable Godot 4.4 campaign slice of a Quake-style territorial FPS where death
 
 You are **ARIEL**, a Seraph-class servant-warrior. Incoming damage drains Glory instead of health. At zero Glory ARIEL becomes **Veiled**: slower, dimmed, and unable to purify the garden. Corruption keeps spreading, and the mission fails only if it reclaims the Thin Place at the garden's heart.
 
+## v0.5.0 — Phase One Closeout
+
+- Every commission now starts from a deterministic authored corruption silhouette rather than shared random edge noise.
+- Mission timelines let the human Intercessor pray, declare, legislate, and speak with intent while preserving all manual authority verbs.
+- Corruption propagation uses a localized dirty frontier and deterministic Anchor/cardinal zone mapping instead of full-grid sweeps.
+- Fallen immunity has a visible long-range shell, ringing deflection sparks, and an explicit Rebuke collapse state.
+- ARIEL visibly dims while Veiled; Host reinforcements steer, withdraw without dying, and return through a column of fire.
+- CI now runs 31 deterministic tests, including the original uncapped Quake strafe-acceleration acceptance check.
+
 ## v0.4.0 — Authority and Arenas
 
 - Territorial legislation now offers three selectable, persistent laws: Ground Holds, No Unclean Entry, and No Hidden Thing.

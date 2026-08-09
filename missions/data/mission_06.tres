@@ -5,6 +5,13 @@
 [resource]
 script = ExtResource("1")
 mission_id = &"VOICE_OF_MANY"
+corruption_pattern = "SPIRAL"
+corruption_seed = 606
+intercessor_cue_times = PackedFloat32Array(4, 28, 60, 105)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "DECLARE", "PRAY")
+intercessor_cue_arguments = PackedStringArray("", "", "", "")
+intercessor_cue_durations = PackedFloat32Array(0, 7, 0, 9)
+intercessor_cue_lines = PackedStringArray("Many voices contend here. Attend only to the commission.", "Join the prayer, and do not mistake noise for authority.", "The true word is given. Let the counterfeit throne hear it.", "The Host is returning to the field; open its path.")
 chapter = 6
 title = "Voice of Many"
 briefing = "The garden resounds with unceasing worship. Survive the convergence and receive the Host without abandoning the anchor."

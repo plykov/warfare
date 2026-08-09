@@ -20,6 +20,8 @@ signal exited_veiled
 
 signal prayer_started
 signal prayer_stopped
+signal intercessor_cue_requested(action: StringName, argument: StringName, duration: float, line: String)
+signal intercessor_spoke(text: String)
 signal declaration_issued(token_id: StringName, duration: float)
 signal declaration_denied
 signal commission_state_changed(active: bool, remaining: float)
@@ -47,6 +49,7 @@ signal rebuke_requested(position: Vector3, radius: float)
 signal bind_requested(target: Node, duration: float)
 signal mark_requested(target: Node, duration: float)
 signal target_bound(kind: StringName)
+signal fallen_guard_changed(target: Node, shielded: bool)
 signal enemy_defeated(kind: StringName, position: Vector3)
 signal enemy_attack_landed(kind: StringName)
 signal weapon_fired(weapon_id: StringName)
@@ -95,6 +98,7 @@ signal pride_changed(value: float, maximum: float)
 signal host_requested(position: Vector3)
 signal host_arrived
 signal host_withdrawn
+signal host_returned
 signal threat_density_changed(value: float, position: Vector3)
 signal message_posted(text: String, tone: StringName)
 signal audio_requested(kind: StringName)

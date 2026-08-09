@@ -92,6 +92,8 @@ func _fire(alt: bool) -> void:
 	if weapon.requires_commission and not IntercessorSystem.has_commission():
 		EventBus.weapon_denied.emit("Commission required — press E to Declare")
 		EventBus.message_posted.emit("NO AUTHORITY // DECLARE BEFORE REBUKE", &"danger")
+		EventBus.audio_requested.emit(&"denied")
+		EventBus.combat_feedback.emit(&"denied", camera.global_position + -camera.global_basis.z * 1.2, Color(0.42, 0.08, 0.55), 1.4)
 		cooldown = 0.35
 		return
 	if weapon.glory_cost > 0.0:
@@ -141,6 +143,7 @@ func _fire(alt: bool) -> void:
 				var marked: Dictionary = _ray_hit(weapon.range)
 				if not marked.is_empty():
 					EventBus.mark_requested.emit(marked.collider, 8.0)
+					EventBus.message_posted.emit("TARGET SEALED FOR THE HOST", &"info")
 		&"chariot":
 			_area_strike(get_parent().get_parent().get_parent().global_position, weapon)
 			EventBus.player_impulse_requested.emit(10.0 if alt else 6.0)

@@ -25,6 +25,8 @@ var zone_laws: Dictionary = {}
 var _host_cooldown: float = 0.0
 var _rank_index: int = 0
 var selected_law: int = 0
+var _manual_praying: bool = false
+var _scripted_prayer_remaining: float = 0.0
 
 func _ready() -> void:
 	EventBus.game_started.connect(_on_game_started)
@@ -37,17 +39,22 @@ func _ready() -> void:
 	EventBus.token_grant_requested.connect(_on_token_grant_requested)
 	EventBus.law_selection_requested.connect(_on_law_selection_requested)
 	EventBus.legislation_commit_requested.connect(_on_legislation_commit_requested)
+	EventBus.intercessor_cue_requested.connect(_on_intercessor_cue_requested)
 	call_deferred("_emit_law_selection")
 
 func _process(delta: float) -> void:
 	if not GameState.is_playing():
 		return
 	_host_cooldown = maxf(0.0, _host_cooldown - delta)
+	_scripted_prayer_remaining = maxf(0.0, _scripted_prayer_remaining - delta)
+	_refresh_prayer_state()
 	if is_praying and fervency > 0.0:
 		fervency = maxf(0.0, fervency - PRAYER_DRAIN_PER_SECOND * delta)
 		EventBus.glory_regen_requested.emit(PRAYER_GLORY_PER_SECOND * delta, &"PRAYER")
 		if fervency <= 0.0:
-			stop_prayer()
+			_manual_praying = false
+			_scripted_prayer_remaining = 0.0
+			_refresh_prayer_state()
 	else:
 		fervency = minf(MAX_FERVENCY, fervency + REST_PER_SECOND * delta)
 
@@ -64,19 +71,20 @@ func _process(delta: float) -> void:
 	EventBus.fervency_changed.emit(fervency, MAX_FERVENCY)
 
 func start_prayer() -> void:
-	if is_praying or fervency <= 0.0 or not GameState.is_playing():
+	if _manual_praying or fervency <= 0.0 or not GameState.is_playing():
 		return
-	is_praying = true
-	EventBus.prayer_started.emit()
+	_manual_praying = true
+	_refresh_prayer_state()
 	EventBus.message_posted.emit("INTERCESSOR // PRAYER CHANNEL OPEN", &"holy")
+	_speak("I am at prayer. Receive what is given and keep moving.")
 
 func stop_prayer() -> void:
-	if not is_praying:
+	if not _manual_praying:
 		return
-	is_praying = false
-	EventBus.prayer_stopped.emit()
+	_manual_praying = false
+	_refresh_prayer_state()
 
-func declare() -> bool:
+func declare(speak: bool = true) -> bool:
 	if fervency < DECLARE_COST or not GameState.is_playing():
 		EventBus.declaration_denied.emit()
 		EventBus.message_posted.emit("DECLARATION DENIED // FERVENCY LOW", &"danger")
@@ -86,6 +94,8 @@ func declare() -> bool:
 	EventBus.declaration_issued.emit(&"REBuke", TOKEN_DURATION)
 	EventBus.message_posted.emit("THE WORD IS GIVEN // REBUKE COMMISSIONED", &"holy")
 	EventBus.audio_requested.emit(&"declare")
+	if speak:
+		_speak("The word is given. Rebuke under authority, not your own strength.")
 	return true
 
 func has_commission(token_id: StringName = &"REBuke") -> bool:
@@ -105,29 +115,37 @@ func convert_fervency(requested: float) -> float:
 	EventBus.fervency_changed.emit(fervency, MAX_FERVENCY)
 	return converted
 
-func legislate(zone_id: StringName, law_id: StringName) -> bool:
+func legislate(zone_id: StringName, law_id: StringName, speak: bool = true) -> bool:
 	var law_index: int = LAW_IDS.find(law_id)
 	var cost: float = LAW_COSTS[law_index] if law_index >= 0 else LEGISLATE_COST
+	var laws: Array = zone_laws.get(zone_id, [])
+	if law_id in laws:
+		EventBus.law_denied.emit()
+		EventBus.message_posted.emit("LAW ALREADY ESTABLISHED // NO FERVENCY SPENT", &"info")
+		return false
 	if fervency < cost or not GameState.is_playing():
 		EventBus.law_denied.emit()
 		EventBus.message_posted.emit("LEGISLATION DENIED // FERVENCY LOW", &"danger")
 		return false
 	fervency -= cost
-	var laws: Array = zone_laws.get(zone_id, [])
-	if law_id not in laws:
-		laws.append(law_id)
+	laws.append(law_id)
 	zone_laws[zone_id] = laws
 	EventBus.law_enacted.emit(zone_id, law_id)
 	EventBus.zone_laws_changed.emit(zone_laws.duplicate(true))
 	var label: String = LAW_LABELS[law_index] if law_index >= 0 else String(law_id)
 	EventBus.message_posted.emit("LAW ENACTED // %s" % label, &"holy")
 	EventBus.audio_requested.emit(&"legislate")
+	if speak:
+		_speak("Let it be established: %s." % label.to_lower())
 	return true
 
 func has_law(zone_id: StringName, law_id: StringName) -> bool:
 	return law_id in zone_laws.get(zone_id, [])
 
 func _on_game_started() -> void:
+	_manual_praying = false
+	_scripted_prayer_remaining = 0.0
+	_refresh_prayer_state()
 	EventBus.fervency_changed.emit(fervency, MAX_FERVENCY)
 	_emit_law_selection()
 	EventBus.zone_laws_changed.emit(zone_laws.duplicate(true))
@@ -186,9 +204,43 @@ func _on_legislation_commit_requested(zone_id: StringName) -> void:
 func _emit_law_selection() -> void:
 	EventBus.law_selection_changed.emit(selected_law, LAW_IDS[selected_law], LAW_LABELS[selected_law], LAW_DESCRIPTIONS[selected_law], LAW_COSTS[selected_law])
 
+func _on_intercessor_cue_requested(action: StringName, argument: StringName, duration: float, line: String) -> void:
+	match action:
+		&"PRAY":
+			if fervency > 0.0:
+				_scripted_prayer_remaining = maxf(_scripted_prayer_remaining, duration)
+				_refresh_prayer_state()
+				_speak(line)
+		&"DECLARE":
+			if declare(false):
+				_speak(line)
+		&"LEGISLATE":
+			if legislate(&"GARDEN", argument, false):
+				_speak(line)
+		&"VOICE":
+			_speak(line)
+
+func _refresh_prayer_state() -> void:
+	var next_state: bool = _manual_praying or _scripted_prayer_remaining > 0.0
+	if next_state == is_praying:
+		return
+	is_praying = next_state
+	if is_praying:
+		EventBus.prayer_started.emit()
+	else:
+		EventBus.prayer_stopped.emit()
+
+func _speak(text: String) -> void:
+	if text.is_empty():
+		return
+	EventBus.intercessor_spoke.emit(text)
+	EventBus.audio_requested.emit(&"intercessor")
+
 func _reset_for_test() -> void:
 	fervency = MAX_FERVENCY
 	is_praying = false
+	_manual_praying = false
+	_scripted_prayer_remaining = 0.0
 	tokens.clear()
 	zone_laws.clear()
 	_host_cooldown = 0.0

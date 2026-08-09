@@ -43,6 +43,10 @@ func play_cue(kind: StringName) -> void:
 		&"veiled": _frequency = 74.0; _remaining = 0.8
 		&"victory": _frequency = 880.0; _remaining = 1.0
 		&"failure": _frequency = 62.0; _remaining = 1.0
+		&"intercessor": _frequency = 610.0; _remaining = 0.45
+		&"deflect": _frequency = 1180.0; _remaining = 0.18
+		&"denied": _frequency = 92.0; _remaining = 0.42
+		&"host_return": _frequency = 920.0; _remaining = 0.75
 		_: _frequency = 260.0; _remaining = 0.06
 
 func _process(delta: float) -> void:

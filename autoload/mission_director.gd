@@ -9,6 +9,7 @@ var _hold: float = 0.0
 var _ended: bool = false
 var _objective_tick: float = 0.0
 var current_purity: float = 0.0
+var _next_intercessor_cue: int = 0
 
 func _ready() -> void:
 	EventBus.mission_selected.connect(_on_mission_selected)
@@ -25,6 +26,7 @@ func _process(delta: float) -> void:
 	if not GameState.is_playing() or _ended or current_mission == null:
 		return
 	_context["elapsed"] = GameState.elapsed
+	_process_intercessor_cues()
 	if current_mission.time_limit > 0.0 and GameState.elapsed >= current_mission.time_limit:
 		_end(false, "THE COMMISSION WINDOW CLOSED")
 		return
@@ -45,7 +47,21 @@ func _process(delta: float) -> void:
 
 func _on_mission_selected(_index: int, mission: Resource) -> void:
 	current_mission = mission as MissionResource
+	_next_intercessor_cue = 0
 	_build_objectives()
+
+func _process_intercessor_cues() -> void:
+	if current_mission == null or not current_mission.intercessor_cues_are_valid():
+		return
+	while _next_intercessor_cue < current_mission.intercessor_cue_times.size() and GameState.elapsed >= current_mission.intercessor_cue_times[_next_intercessor_cue]:
+		var cue: int = _next_intercessor_cue
+		_next_intercessor_cue += 1
+		EventBus.intercessor_cue_requested.emit(
+			StringName(current_mission.intercessor_cue_actions[cue]),
+			StringName(current_mission.intercessor_cue_arguments[cue]),
+			current_mission.intercessor_cue_durations[cue],
+			current_mission.intercessor_cue_lines[cue]
+		)
 
 func _build_objectives() -> void:
 	objectives.clear()
@@ -115,6 +131,7 @@ func _on_boss_defeated(_kind: StringName) -> void:
 func _on_game_started() -> void:
 	_ended = false
 	_hold = 0.0
+	_next_intercessor_cue = 0
 	_context = {
 		"purity": 0.0,
 		"anchor": 0.0,
@@ -133,4 +150,5 @@ func _reset_for_test() -> void:
 	_ended = false
 	_context.clear()
 	current_purity = 0.0
+	_next_intercessor_cue = 0
 	_on_mission_selected(0, load(GameState.MISSION_PATHS[0]))

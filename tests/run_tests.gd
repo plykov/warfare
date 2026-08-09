@@ -32,9 +32,15 @@ func _run() -> void:
 	_test_faction_combat_profiles()
 	_test_support_authority_interactions()
 	_test_chapter_arena_recipes()
+	_test_authored_corruption_layouts()
+	_test_intercessor_timeline()
+	_test_dirty_region_and_zone_mapping()
+	_test_fallen_guard_feedback()
+	_test_host_withdrawal_and_return()
+	_test_uncapped_strafe_acceleration()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 25 passed")
+		print("GARDEN RECLAIMED TESTS: 31 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -263,6 +269,8 @@ func _test_three_law_legislation() -> void:
 	EventBus.legislation_commit_requested.emit(&"GARDEN")
 	_assert(IntercessorSystem.has_law(&"GARDEN", &"NO_UNCLEAN_ENTRY"), "Committing the selected law must enact No Unclean Entry")
 	_assert(is_equal_approx(IntercessorSystem.fervency, 55.0), "Each territorial law must spend its authored Fervency cost")
+	var fervency_after_law: float = IntercessorSystem.fervency
+	_assert(not IntercessorSystem.legislate(&"GARDEN", &"NO_UNCLEAN_ENTRY") and is_equal_approx(IntercessorSystem.fervency, fervency_after_law), "An established law must never charge Fervency twice")
 	var revealed_fallen := FallenEnemy.new()
 	get_tree().root.add_child(revealed_fallen)
 	EventBus.zone_laws_changed.emit({&"GARDEN": [&"NO_HIDDEN_THING"]})
@@ -315,6 +323,79 @@ func _test_chapter_arena_recipes() -> void:
 			var at: Vector3 = definition.position
 			_assert(Vector2(at.x, at.z).length() > 4.0, "Chapter geometry must keep the central Thin Place clear")
 	_assert(fingerprints.size() == 8, "All eight chapters must form a distinct arena silhouette")
+
+func _test_authored_corruption_layouts() -> void:
+	var patterns: Dictionary = {}
+	var signatures: Dictionary = {}
+	for path: String in GameState.MISSION_PATHS:
+		var mission := load(path) as MissionResource
+		patterns[mission.corruption_pattern] = true
+		_assert(mission.intercessor_cues_are_valid(), "Every mission timeline must keep its cue columns aligned")
+		for action: String in mission.intercessor_cue_actions:
+			_assert(action in ["VOICE", "PRAY", "DECLARE", "LEGISLATE"], "Mission timelines must use a recognized Intercessor action")
+		var signature: String = "%.3f/%.3f/%.3f" % [
+			CorruptionDirector.initial_value_for_cell(StringName(mission.corruption_pattern), 3, 3, mission.corruption_seed, mission.corruption_bias),
+			CorruptionDirector.initial_value_for_cell(StringName(mission.corruption_pattern), 12, 4, mission.corruption_seed, mission.corruption_bias),
+			CorruptionDirector.initial_value_for_cell(StringName(mission.corruption_pattern), 21, 15, mission.corruption_seed, mission.corruption_bias)
+		]
+		signatures[signature] = true
+	_assert(patterns.size() == 8 and signatures.size() == 8, "All eight commissions must own a distinct deterministic corruption layout")
+
+func _test_intercessor_timeline() -> void:
+	GameState._reset_for_test()
+	IntercessorSystem._reset_for_test()
+	var spoken: Array[String] = []
+	var capture := func(text: String) -> void: spoken.append(text)
+	EventBus.intercessor_spoke.connect(capture)
+	var mission := load(GameState.MISSION_PATHS[0]) as MissionResource
+	EventBus.mission_selected.emit(0, mission)
+	GameState.phase = GameState.Phase.PLAYING
+	EventBus.game_started.emit()
+	GameState.elapsed = 18.0
+	MissionDirector._process(0.1)
+	_assert(IntercessorSystem.is_praying, "Mission timelines must be able to open a scripted prayer window")
+	_assert(spoken.size() >= 2, "Timeline actions must make the human Intercessor speak with intent")
+	EventBus.intercessor_spoke.disconnect(capture)
+	GameState._reset_for_test()
+	IntercessorSystem._reset_for_test()
+
+func _test_dirty_region_and_zone_mapping() -> void:
+	CorruptionDirector._reset_for_test()
+	var full_grid: int = CorruptionDirector.GRID_WIDTH * CorruptionDirector.GRID_HEIGHT
+	_assert(CorruptionDirector.dirty_cell_count() > 0 and CorruptionDirector.dirty_cell_count() < full_grid, "Initial corruption must seed a localized dirty frontier")
+	CorruptionDirector._spread()
+	_assert(CorruptionDirector.last_spread_evaluated > 0 and CorruptionDirector.last_spread_evaluated < full_grid, "Spread ticks must avoid sweeping the entire field")
+	_assert(CorruptionDirector.zone_id_for_world(Vector3.ZERO) == &"ANCHOR", "The Thin Place must occupy its own mapped zone")
+	_assert(CorruptionDirector.zone_id_for_world(Vector3(22, 0, 0)) == &"EAST" and CorruptionDirector.zone_id_for_world(Vector3(-22, 0, 0)) == &"WEST", "Corruption cells must map into deterministic cardinal law zones")
+	CorruptionDirector._reset_for_test()
+
+func _test_fallen_guard_feedback() -> void:
+	var fallen := FallenEnemy.new()
+	get_tree().root.add_child(fallen)
+	var shell := fallen.get("_shield_shell") as MeshInstance3D
+	_assert(shell != null and shell.visible, "Fallen immunity must have a persistent visible authority shell")
+	EventBus.rebuke_requested.emit(fallen.global_position, 3.0)
+	_assert(fallen.rebuked_remaining > 0.0 and not shell.visible, "Rebuke must visibly collapse the Fallen authority shell")
+	fallen.queue_free()
+
+func _test_host_withdrawal_and_return() -> void:
+	var host := HostMember.new()
+	get_tree().root.add_child(host)
+	var returned := [false]
+	EventBus.host_returned.connect(func() -> void: returned[0] = true, CONNECT_ONE_SHOT)
+	host._withdraw()
+	_assert(host.withdrawn and not host.visible and is_instance_valid(host), "Host members must withdraw without being destroyed")
+	host._return_to_field()
+	_assert(not host.withdrawn and host.visible and returned[0], "Withdrawn Host members must re-enter the same field instance")
+	host.queue_free()
+
+func _test_uncapped_strafe_acceleration() -> void:
+	var controller := ArielController.new()
+	controller.velocity = Vector3(10.0, 0.0, 0.0)
+	var before: float = controller.velocity.length()
+	controller._accelerate(Vector3(0.0, 0.0, -1.0), 10.0, 1.0, 1.0)
+	_assert(controller.velocity.length() > before, "Perpendicular air acceleration must measurably increase strafe speed without a cap")
+	controller.free()
 
 func _assert(condition: bool, message: String) -> void:
 	if not condition:
