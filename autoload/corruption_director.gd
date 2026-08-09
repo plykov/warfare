@@ -60,7 +60,7 @@ func _spread() -> void:
 		last_spread_evaluated = 0
 		return
 	var source: PackedFloat32Array = cells.duplicate()
-	var rate: float = NATURAL_SPREAD * (VEILED_SPREAD_MULTIPLIER if _is_veiled else 1.0)
+	var rate: float = NATURAL_SPREAD * (VEILED_SPREAD_MULTIPLIER if _is_veiled else 1.0) * SettingsState.difficulty_multiplier()
 	var candidates: Array = _dirty_cells.keys()
 	_dirty_cells.clear()
 	last_spread_evaluated = candidates.size()

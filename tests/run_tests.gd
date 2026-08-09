@@ -44,9 +44,11 @@ func _run() -> void:
 	_test_fallen_guard_feedback()
 	_test_host_withdrawal_and_return()
 	_test_uncapped_strafe_acceleration()
+	_test_difficulty_multiplier()
+	_test_key_rebinding()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 35 passed")
+		print("GARDEN RECLAIMED TESTS: 37 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -161,6 +163,25 @@ func _test_settings_validation() -> void:
 	_assert(SettingsState.set_value(&"mouse_sensitivity", 99.0), "Known settings must accept updates")
 	_assert(is_equal_approx(float(SettingsState.get_value(&"mouse_sensitivity")), 2.5), "Aim sensitivity must clamp to its accessible range")
 	_assert(not SettingsState.set_value(&"unknown_setting", true), "Unknown settings must not enter the persisted schema")
+
+func _test_difficulty_multiplier() -> void:
+	SettingsState._reset_for_test()
+	_assert(is_equal_approx(SettingsState.difficulty_multiplier(), 1.0), "Skilled must be the default 1.0x baseline")
+	_assert(SettingsState.set_value(&"difficulty", &"novice"), "Difficulty must accept known tiers")
+	_assert(SettingsState.difficulty_multiplier() < 1.0, "Novice must be easier than baseline")
+	_assert(SettingsState.set_value(&"difficulty", &"expert"), "Difficulty must accept the expert tier")
+	_assert(SettingsState.difficulty_multiplier() > 1.0, "Expert must be harder than baseline")
+	SettingsState.set_value(&"difficulty", &"nonsense")
+	_assert(SettingsState.get_value(&"difficulty") in SettingsState.DIFFICULTY_ORDER, "Unknown difficulty tiers must normalize to a known tier")
+
+func _test_key_rebinding() -> void:
+	SettingsState._reset_for_test()
+	var default_label: String = SettingsState.key_label_for_action(&"jump")
+	_assert(SettingsState.rebind_action(&"jump", KEY_J), "A rebindable action must accept a new physical keycode")
+	_assert(SettingsState.key_label_for_action(&"jump") != default_label, "Rebinding must change the reported key label")
+	_assert(not SettingsState.rebind_action(&"fire", KEY_K), "Mouse-bound actions must not be rebindable through this path")
+	SettingsState.reset_key_binds()
+	_assert(SettingsState.key_label_for_action(&"jump") == default_label, "Reset must restore the default key binding")
 
 func _test_campaign_records() -> void:
 	GameState._reset_for_test()

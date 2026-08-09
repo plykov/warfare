@@ -4,6 +4,12 @@ A playable Godot 4.4 campaign slice of a Quake-style territorial FPS where death
 
 You are **ARIEL**, a Seraph-class servant-warrior. Incoming damage drains Glory instead of health. At zero Glory ARIEL becomes **Veiled**: slower, dimmed, and unable to purify the garden. Corruption keeps spreading, and the mission fails only if it reclaims the Thin Place at the garden's heart.
 
+## Phase 2 (in progress) — see `PHASE2_SCOPE.md`
+
+- Difficulty select (Novice/Skilled/Expert) now drives corruption spread rate and territorial pressure, exposing the same profiles `tests/balance_sim.gd` already balances.
+- Movement, prayer, and authority keys are rebindable from the pause menu and persist alongside existing accessibility settings.
+- CI runs 37 deterministic tests.
+
 ## v0.7.0 — The Full Commission
 
 - Missions 02–08 now have an explicit data-only completion contract covering every objective primitive, authored briefing, scripture reference, palette, corruption layout, and voice timeline.

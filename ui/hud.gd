@@ -44,6 +44,8 @@ var law_label: Label
 var _message_time: float = 0.0
 var _hit_time: float = 0.0
 var _subtitles_enabled: bool = true
+var _rebind_pending_action: StringName = &""
+var _keybind_buttons: Dictionary = {}
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -53,6 +55,16 @@ func _ready() -> void:
 	_build_pause_overlay()
 	_build_debug_console()
 	_connect_signals()
+
+func _input(event: InputEvent) -> void:
+	if _rebind_pending_action == &"":
+		return
+	if event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo:
+		var action: StringName = _rebind_pending_action
+		_rebind_pending_action = &""
+		SettingsState.rebind_action(action, (event as InputEventKey).physical_keycode)
+		_refresh_keybind_labels()
+		get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
 	_message_time = maxf(0.0, _message_time - delta)
@@ -332,9 +344,13 @@ func _build_pause_overlay() -> void:
 	panel.size = Vector2(600, 716)
 	panel.add_theme_stylebox_override("panel", _box(INK, GOLD, 2))
 	pause_overlay.add_child(panel)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	panel.add_child(scroll)
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 10)
-	panel.add_child(stack)
+	stack.custom_minimum_size = Vector2(580, 0)
+	scroll.add_child(stack)
 	var heading := _label("COMMISSION SUSPENDED", 36, GOLD)
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(heading)
@@ -348,9 +364,11 @@ func _build_pause_overlay() -> void:
 	_add_toggle_setting(stack, "HIGH-CONTRAST CORRUPTION", &"high_contrast")
 	_add_toggle_setting(stack, "REDUCED FLASH", &"reduced_flash")
 	_add_toggle_setting(stack, "SUBTITLES / FIELD MESSAGES", &"subtitles")
+	_add_difficulty_setting(stack)
 	var controls := _label("WASD MOVE  |  MOUSE AIM / FIRE  |  SPACE ASCEND  |  SHIFT DASH\nQ PRAY  |  E DECLARE  |  R LEGISLATE  |  F SURVEY\n1-0, [ and ] SELECT ALL TWELVE MANIFESTATIONS", 14, Color(0.76, 0.78, 0.73))
 	controls.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(controls)
+	_build_keybind_rows(stack)
 	var resume := Button.new()
 	resume.text = "RETURN"
 	resume.custom_minimum_size = Vector2(0, 50)
@@ -384,6 +402,61 @@ func _add_toggle_setting(parent: VBoxContainer, title: String, key: StringName) 
 	toggle.button_pressed = bool(SettingsState.get_value(key))
 	toggle.toggled.connect(func(value: bool) -> void: EventBus.setting_update_requested.emit(key, value))
 	parent.add_child(toggle)
+
+## M13 — difficulty select. NOVICE/SKILLED/EXPERT drive corruption spread
+## rate and encounter pressure via SettingsState.difficulty_multiplier();
+## see corruption_director.gd and encounter_director.gd.
+func _add_difficulty_setting(parent: VBoxContainer) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	parent.add_child(row)
+	var label := _label("DIFFICULTY", 15, PALE)
+	label.custom_minimum_size = Vector2(250, 36)
+	row.add_child(label)
+	var option := OptionButton.new()
+	option.custom_minimum_size = Vector2(280, 36)
+	var current: StringName = StringName(SettingsState.get_value(&"difficulty"))
+	for i: int in range(SettingsState.DIFFICULTY_ORDER.size()):
+		var tier: StringName = SettingsState.DIFFICULTY_ORDER[i]
+		option.add_item(String(tier).to_upper(), i)
+		if tier == current:
+			option.selected = i
+	option.item_selected.connect(func(index: int) -> void:
+		EventBus.setting_update_requested.emit(&"difficulty", SettingsState.DIFFICULTY_ORDER[index])
+	)
+	row.add_child(option)
+
+## M14 — key rebinding. Clicking a row's button arms _rebind_pending_action;
+## the next physical key press in _input() commits the new binding.
+func _build_keybind_rows(parent: VBoxContainer) -> void:
+	parent.add_child(_label("CONTROLS // CLICK A KEY TO REBIND", 15, GOLD))
+	for action: StringName in SettingsState.REBINDABLE_ACTIONS:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		parent.add_child(row)
+		var label := _label(String(action).to_upper().replace("_", " "), 14, PALE)
+		label.custom_minimum_size = Vector2(250, 32)
+		row.add_child(label)
+		var key_button := Button.new()
+		key_button.custom_minimum_size = Vector2(280, 32)
+		key_button.text = SettingsState.key_label_for_action(action)
+		key_button.pressed.connect(func() -> void:
+			_rebind_pending_action = action
+			key_button.text = "PRESS A KEY…"
+		)
+		_keybind_buttons[action] = key_button
+		row.add_child(key_button)
+	var reset := Button.new()
+	reset.text = "RESET CONTROLS TO DEFAULT"
+	reset.pressed.connect(func() -> void:
+		SettingsState.reset_key_binds()
+		_refresh_keybind_labels()
+	)
+	parent.add_child(reset)
+
+func _refresh_keybind_labels() -> void:
+	for action: Variant in _keybind_buttons.keys():
+		(_keybind_buttons[action] as Button).text = SettingsState.key_label_for_action(StringName(action))
 
 func _build_debug_console() -> void:
 	debug_overlay = PanelContainer.new()
