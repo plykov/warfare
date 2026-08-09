@@ -3,7 +3,7 @@ extends Node
 enum Phase { TITLE, PLAYING, COMPLETE, FAILED }
 
 const SAVE_PATH: String = "user://garden_reclaimed.save"
-const SAVE_VERSION: int = 2
+const SAVE_VERSION: int = 3
 const MISSION_PATHS: PackedStringArray = [
 	"res://missions/data/mission_01.tres",
 	"res://missions/data/mission_02.tres",
@@ -21,6 +21,8 @@ var selected_mission: int = 0
 var unlocked_count: int = 1
 var completed: Dictionary = {}
 var mission_records: Dictionary = {}
+var garden_states: Dictionary = {}
+var campaign_pride: float = 0.0
 var persistence_enabled: bool = true
 var paused: bool = false
 
@@ -28,6 +30,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	EventBus.mission_outcome_requested.connect(_on_mission_outcome_requested)
 	EventBus.pause_requested.connect(set_paused)
+	EventBus.corruption_snapshot_ready.connect(_on_corruption_snapshot_ready)
+	EventBus.laws_snapshot_ready.connect(_on_laws_snapshot_ready)
+	EventBus.pride_changed.connect(_on_pride_changed)
 	_load_progress()
 	call_deferred("_emit_campaign")
 
@@ -52,6 +57,8 @@ func start_game() -> void:
 	elapsed = 0.0
 	EventBus.restoration_state_changed.emit(completed.size())
 	EventBus.mission_selected.emit(selected_mission, mission)
+	EventBus.campaign_garden_state_loaded.emit(selected_mission, garden_states.get(str(selected_mission), {}).duplicate(true))
+	EventBus.campaign_pride_loaded.emit(campaign_pride)
 	EventBus.game_started.emit()
 	EventBus.game_phase_changed.emit(&"PLAYING")
 
@@ -110,6 +117,8 @@ func completed_count() -> int:
 	return completed.size()
 
 func _on_mission_outcome_requested(success: bool, reason: String) -> void:
+	if success:
+		_capture_garden_state()
 	_record_attempt(success)
 	if success:
 		complete()
@@ -142,6 +151,28 @@ func _record_attempt(success: bool) -> void:
 		record.best_purity = maxf(float(record.get("best_purity", 0.0)), MissionDirector.current_purity)
 	mission_records[key] = record
 
+func _capture_garden_state() -> void:
+	var key := str(selected_mission)
+	if not garden_states.has(key):
+		garden_states[key] = {}
+	EventBus.campaign_snapshot_requested.emit(selected_mission)
+
+func _on_corruption_snapshot_ready(mission_index: int, snapshot_cells: PackedFloat32Array, purity: float) -> void:
+	var key := str(mission_index)
+	var state: Dictionary = garden_states.get(key, {}).duplicate(true)
+	state["cells"] = Array(snapshot_cells)
+	state["purity"] = clampf(purity, 0.0, 1.0)
+	garden_states[key] = state
+
+func _on_laws_snapshot_ready(mission_index: int, laws: Dictionary) -> void:
+	var key := str(mission_index)
+	var state: Dictionary = garden_states.get(key, {}).duplicate(true)
+	state["laws"] = laws.duplicate(true)
+	garden_states[key] = state
+
+func _on_pride_changed(value: float, _maximum: float) -> void:
+	campaign_pride = clampf(value, 0.0, 100.0)
+
 func _save_progress() -> void:
 	if not persistence_enabled:
 		return
@@ -154,7 +185,9 @@ func _save_progress() -> void:
 		"selected_mission": selected_mission,
 		"unlocked_count": unlocked_count,
 		"completed": completed.keys(),
-		"mission_records": mission_records
+		"mission_records": mission_records,
+		"garden_states": garden_states,
+		"campaign_pride": campaign_pride
 	}))
 
 func _load_progress() -> void:
@@ -181,6 +214,14 @@ func _apply_progress_data(data: Dictionary) -> void:
 			var stored: Variant = (stored_records as Dictionary)[key]
 			if stored is Dictionary:
 				mission_records[str(key)] = (stored as Dictionary).duplicate(true)
+	garden_states.clear()
+	var stored_gardens: Variant = data.get("garden_states", {})
+	if stored_gardens is Dictionary:
+		for key: Variant in (stored_gardens as Dictionary).keys():
+			var stored_state: Variant = (stored_gardens as Dictionary)[key]
+			if stored_state is Dictionary:
+				garden_states[str(key)] = (stored_state as Dictionary).duplicate(true)
+	campaign_pride = clampf(float(data.get("campaign_pride", 0.0)), 0.0, 100.0)
 	# Version 1 saves only had a completion list. Seed useful records without
 	# invalidating anyone's existing campaign.
 	if int(data.get("save_version", 1)) < SAVE_VERSION:
@@ -196,6 +237,8 @@ func _reset_for_test() -> void:
 	unlocked_count = 1
 	completed.clear()
 	mission_records.clear()
+	garden_states.clear()
+	campaign_pride = 0.0
 	paused = false
 	get_tree().paused = false
 	_emit_campaign()

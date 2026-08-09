@@ -37,7 +37,7 @@ $checks = @(
     @{
         Name = "unit"
         Scene = "res://tests/test_runner.tscn"
-        Marker = "GARDEN RECLAIMED TESTS: 15 passed"
+        Marker = "GARDEN RECLAIMED TESTS: 20 passed"
     },
     @{
         Name = "gameplay-smoke"
@@ -48,6 +48,11 @@ $checks = @(
         Name = "campaign-smoke"
         Scene = "res://tests/campaign_smoke.tscn"
         Marker = "GARDEN RECLAIMED CAMPAIGN SMOKE: final commission mixed encounter ran 360 frames"
+    },
+    @{
+        Name = "balance-sim"
+        Scene = "res://tests/balance_sim.tscn"
+        Marker = "GARDEN RECLAIMED BALANCE SIM: 8 commissions x 3 profiles passed"
     }
 )
 

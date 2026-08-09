@@ -20,6 +20,7 @@ var _player: ArielController
 var _mission: MissionResource = preload("res://missions/data/mission_01.tres")
 var _environment: Environment
 var _garden_color: Color = Color(0.035, 0.23, 0.075)
+var _mission_fog_color: Color = Color(0.08, 0.1, 0.11)
 var _encounter_intensity: float = 0.0
 var _last_wave: int = 0
 
@@ -39,6 +40,9 @@ func _ready() -> void:
 	EventBus.encounter_state_changed.connect(_on_encounter_state_changed)
 	EventBus.boss_spawn_requested.connect(_on_boss_spawn_requested)
 	EventBus.settings_changed.connect(_on_settings_changed)
+	EventBus.restoration_feedback_changed.connect(_on_restoration_feedback_changed)
+	EventBus.sevenfold_granted.connect(_on_sevenfold_granted)
+	EventBus.debug_spawn_requested.connect(_on_debug_spawn_requested)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -268,9 +272,33 @@ func _on_mission_selected(_index: int, mission: Resource) -> void:
 		return
 	_mission = mission_data
 	_garden_color = mission_data.garden_color
+	_mission_fog_color = mission_data.fog_color
 	if _environment != null:
 		_environment.fog_light_color = mission_data.fog_color
 		_environment.ambient_light_color = mission_data.fog_color.lightened(0.28)
+
+func _on_restoration_feedback_changed(purity: float, _bloom_count: int, _persisted: bool) -> void:
+	if _environment == null:
+		return
+	_environment.fog_density = lerpf(0.011, 0.0025, purity)
+	_environment.fog_light_color = _mission_fog_color.lerp(Color(0.16, 0.22, 0.14), purity * 0.52)
+	_environment.ambient_light_color = _mission_fog_color.lightened(0.22).lerp(Color(0.4, 0.43, 0.29), purity * 0.58)
+	_environment.ambient_light_energy = lerpf(0.72, 1.12, purity)
+
+func _on_sevenfold_granted(position: Vector3) -> void:
+	for enemy: Node in get_tree().get_nodes_in_group("enemies"):
+		if enemy is Node3D:
+			EventBus.damage_requested.emit(enemy, 190.0, &"sonic", (enemy as Node3D).global_position)
+	EventBus.purification_requested.emit(position, 20.0, 1.0)
+	EventBus.combat_feedback.emit(&"boss_phase", position, Color(1.0, 0.78, 0.24), 18.0)
+
+func _on_debug_spawn_requested(kind: StringName, count: int) -> void:
+	for i: int in range(clampi(count, 1, 20)):
+		match kind:
+			&"FALLEN": _spawn_enemy(FALLEN_SCRIPT, _edge_spawn_position())
+			&"SYNTHETIC": _spawn_enemy(SYNTHETIC_SCRIPT, _edge_spawn_position())
+			&"PRINCE": _on_boss_spawn_requested(&"DEBUG_PRINCE", "DEBUG TERRITORIAL PRINCE", 0.8)
+			_: _spawn_demon()
 
 func _on_host_requested(position: Vector3) -> void:
 	for i: int in range(3):

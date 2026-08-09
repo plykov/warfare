@@ -4,6 +4,14 @@ A playable Godot 4.4 campaign slice of a Quake-style territorial FPS where death
 
 You are **ARIEL**, a Seraph-class servant-warrior. Incoming damage drains Glory instead of health. At zero Glory ARIEL becomes **Veiled**: slower, dimmed, and unable to purify the garden. Corruption keeps spreading, and the mission fails only if it reclaims the Thin Place at the garden's heart.
 
+## v0.3.0 — The Living Garden
+
+- Exact per-commission corruption fields, territorial laws, and Pride now persist in save schema v3 and return on replay.
+- A GPU-instanced growth field blooms from purified cells while fog, lighting, and generated ambience respond continuously to restoration.
+- Every ARIEL rank now has a named doctrine, weapon tier, ward value, character line, and mechanical identity.
+- One of the Seven can spend a Commission Token on Sevenfold Judgment with `X`.
+- Backtick opens an interactive field console; CI runs 20 deterministic tests and a 24-scenario campaign balance simulation.
+
 ## v0.2.0 — Thrones and Restoration
 
 - True pause with persistent aim, volume, screen-shake, UI-scale, high-contrast, reduced-flash, and subtitle preferences.
@@ -21,10 +29,11 @@ Open `project.godot` in Godot 4.4.1 and run the project, or download the Windows
 - Left mouse fires; right mouse uses the alternate expression
 - Hold `Q` to Pray; `E` to Declare a Commission Token; `R` to Legislate `GROUND_HOLDS`
 - `F` reveals tactical state; `Esc` pauses and opens accessibility settings
+- `X` invokes Sevenfold Judgment at the final rank; backtick opens the field console
 
 The campaign includes eight data-driven commissions using six locked objective primitives: Purify Zone, Restore Thin Place, Bind Target, Survive Waves, Escort Host, and Break Idol. Each chapter changes ARIEL's manifested rank, objectives, enemy mix, pressure, palette, landmark, and scripture framing.
 
-Progress and settings are saved automatically. Completed commissions unlock the next chapter and leave a persistent restoration advantage in later runs. Existing v0.1 progress migrates automatically to the version 2 save schema.
+Progress and settings are saved automatically. Completed commissions unlock the next chapter and preserve that commission's exact restored ground and enacted laws. Existing v0.1 and v0.2 progress migrates automatically to save schema v3.
 
 ## Campaign
 

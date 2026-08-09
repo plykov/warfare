@@ -26,10 +26,12 @@ var current_index: int = 0
 var cooldown: float = 0.0
 var recoil: float = 0.0
 var _rest_z: float = -0.78
+var _weapon_tier: int = 1
 
 func _ready() -> void:
 	for path: String in WEAPON_PATHS:
 		weapons.append(load(path) as WeaponResource)
+	EventBus.rank_profile_changed.connect(_on_rank_profile_changed)
 	_equip(0)
 
 func _process(delta: float) -> void:
@@ -76,12 +78,14 @@ func _equip(index: int) -> void:
 		weapon_model.rotation = Vector3(-0.12, -0.05, 0.08)
 	weapon_model.mesh = mesh
 	EventBus.weapon_switched.emit(current_index, weapon.display_name)
-	EventBus.weapon_context_changed.emit(weapon.role, weapon.counterplay)
+	EventBus.weapon_context_changed.emit("TIER %d // %s" % [_weapon_tier, weapon.role], weapon.counterplay)
 
 func _fire(alt: bool) -> void:
 	if cooldown > 0.0:
 		return
-	var weapon: WeaponResource = weapons[current_index]
+	var weapon: WeaponResource = weapons[current_index].duplicate() as WeaponResource
+	weapon.damage *= 1.0 + (_weapon_tier - 1) * 0.28
+	weapon.radius *= 1.0 + (_weapon_tier - 1) * 0.08
 	if weapon.requires_commission and not IntercessorSystem.has_commission():
 		EventBus.weapon_denied.emit("Commission required — press E to Declare")
 		EventBus.message_posted.emit("NO AUTHORITY // DECLARE BEFORE REBUKE", &"danger")
@@ -189,3 +193,9 @@ func _ray_hit(distance: float) -> Dictionary:
 	var to: Vector3 = from + -camera.global_basis.z * distance
 	var query := PhysicsRayQueryParameters3D.create(from, to, 0b0101, [get_parent().get_parent().get_parent()])
 	return get_world_3d().direct_space_state.intersect_ray(query)
+
+func _on_rank_profile_changed(_index: int, _name: String, tier: int, _doctrine: String, _passive: String, _power: float, _resistance: float) -> void:
+	_weapon_tier = clampi(tier, 1, 3)
+	var weapon: WeaponResource = weapons[current_index] if not weapons.is_empty() else null
+	if weapon != null:
+		EventBus.weapon_context_changed.emit("TIER %d // %s" % [_weapon_tier, weapon.role], weapon.counterplay)
