@@ -6,6 +6,7 @@ const FALLEN_SCRIPT: Script = preload("res://enemies/fallen.gd")
 const SYNTHETIC_SCRIPT: Script = preload("res://enemies/synthetic.gd")
 const THIN_PLACE_SCRIPT: Script = preload("res://world/thin_place.gd")
 const HOST_SCRIPT: Script = preload("res://host/host_member.gd")
+const PRINCE_SCRIPT: Script = preload("res://enemies/territorial_prince.gd")
 
 var _tiles: Array[MeshInstance3D] = []
 var _tile_materials: Array[StandardMaterial3D] = []
@@ -19,6 +20,8 @@ var _player: ArielController
 var _mission: MissionResource = preload("res://missions/data/mission_01.tres")
 var _environment: Environment
 var _garden_color: Color = Color(0.035, 0.23, 0.075)
+var _encounter_intensity: float = 0.0
+var _last_wave: int = 0
 
 func _ready() -> void:
 	randomize()
@@ -33,10 +36,13 @@ func _ready() -> void:
 	EventBus.mission_failed.connect(_on_mission_failed)
 	EventBus.host_requested.connect(_on_host_requested)
 	EventBus.mission_selected.connect(_on_mission_selected)
+	EventBus.encounter_state_changed.connect(_on_encounter_state_changed)
+	EventBus.boss_spawn_requested.connect(_on_boss_spawn_requested)
+	EventBus.settings_changed.connect(_on_settings_changed)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _unhandled_input(event: InputEvent) -> void:
-	if GameState.phase == GameState.Phase.TITLE and (event is InputEventKey or event is InputEventMouseButton) and event.is_pressed():
+	if GameState.phase == GameState.Phase.TITLE and event is InputEventKey and event.is_pressed() and (event as InputEventKey).keycode == KEY_ENTER:
 		GameState.start_game()
 	elif GameState.phase in [GameState.Phase.COMPLETE, GameState.Phase.FAILED] and event is InputEventKey and event.is_pressed() and (event as InputEventKey).keycode == KEY_ENTER:
 		_reset_run()
@@ -51,7 +57,7 @@ func _process(delta: float) -> void:
 		_threat_timer = 1.0
 		EventBus.threat_density_changed.emit(float(get_tree().get_nodes_in_group("enemies").size()), _player.global_position)
 	if _spawn_timer <= 0.0:
-		_spawn_timer = maxf(1.05, _mission.spawn_interval - GameState.elapsed * 0.006)
+		_spawn_timer = maxf(0.9, (_mission.spawn_interval - GameState.elapsed * 0.006) * lerpf(1.0, 0.72, _encounter_intensity))
 		var enemy_count: int = get_tree().get_nodes_in_group("enemies").size()
 		if enemy_count < _mission.enemy_budget:
 			_spawn_demon()
@@ -195,6 +201,8 @@ func _on_game_started() -> void:
 	_spawned_fallen = false
 	_spawned_synthetic = false
 	_spawn_timer = _mission.spawn_interval
+	_encounter_intensity = 0.0
+	_last_wave = 0
 	for i: int in range(_mission.starting_demons):
 		_spawn_demon()
 	EventBus.message_posted.emit("%s // THE GROUND IS THE LIFE BAR" % _mission.display_title(), &"holy")
@@ -211,6 +219,18 @@ func _spawn_enemy(script: Script, position: Vector3) -> void:
 	enemy.position = position
 	add_child(enemy)
 
+func _on_boss_spawn_requested(kind: StringName, title: String, power: float) -> void:
+	var boss: TerritorialPrince = PRINCE_SCRIPT.new() as TerritorialPrince
+	boss.configure(kind, title, power)
+	boss.position = _edge_spawn_position()
+	add_child(boss)
+
+func _on_encounter_state_changed(wave: int, intensity: float, _label: String) -> void:
+	_encounter_intensity = intensity
+	if wave > _last_wave and _last_wave > 0 and GameState.is_playing():
+		_spawn_demon()
+	_last_wave = wave
+
 func _edge_spawn_position() -> Vector3:
 	var side: int = randi() % 4
 	match side:
@@ -222,7 +242,7 @@ func _edge_spawn_position() -> Vector3:
 func _on_corruption_changed(values: PackedFloat32Array, _width: int, _height: int, purity: float, _anchor: float) -> void:
 	_latest_purity = purity
 	var pure_color := _garden_color
-	var corrupt_color := Color(0.006, 0.002, 0.009)
+	var corrupt_color := Color(0.42, 0.0, 0.52) if bool(SettingsState.get_value(&"high_contrast")) else Color(0.006, 0.002, 0.009)
 	var holy_glow := Color(0.035, 0.13, 0.028)
 	for index: int in range(mini(values.size(), _tiles.size())):
 		var corruption: float = values[index]
@@ -266,3 +286,8 @@ func _reset_run() -> void:
 	RankSystem._reset_for_test()
 	PrideSystem._reset_for_test()
 	CorruptionDirector._reset_for_test()
+	EncounterDirector._reset_for_test()
+
+func _on_settings_changed(_values: Dictionary) -> void:
+	# The next authoritative corruption field tick repaints every tile.
+	pass

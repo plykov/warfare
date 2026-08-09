@@ -5,6 +5,8 @@ extends Resource
 @export var display_name: String
 @export_multiline var source_note: String
 @export var role: String
+@export var counterplay: String = "General-purpose manifestation"
+@export var secondary_name: String = "Empowered manifestation"
 @export var damage_type: StringName = &"purify"
 @export var damage: float = 20.0
 @export var range: float = 20.0
@@ -12,4 +14,5 @@ extends Resource
 @export var cooldown: float = 0.4
 @export var glory_cost: float = 0.0
 @export var requires_commission: bool = false
+@export var impulse: float = 0.0
 @export var tint: Color = Color(1.0, 0.72, 0.22)

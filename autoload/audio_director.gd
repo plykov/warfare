@@ -8,6 +8,7 @@ var _frequency: float = 220.0
 
 func _ready() -> void:
 	EventBus.audio_requested.connect(play_cue)
+	EventBus.settings_changed.connect(_on_settings_changed)
 	# Godot 4.4 retains AudioStreamGeneratorPlayback until shutdown in headless
 	# mode. Tests do not need an audio device, so avoid creating one there.
 	if DisplayServer.get_name() == "headless":
@@ -20,6 +21,12 @@ func _ready() -> void:
 	add_child(_player)
 	_player.play()
 	_playback = _player.get_stream_playback()
+	_on_settings_changed(SettingsState.values)
+
+func _on_settings_changed(values: Dictionary) -> void:
+	if _player != null:
+		var volume: float = float(values.get(&"master_volume", 0.8))
+		_player.volume_db = linear_to_db(maxf(volume, 0.0001))
 
 func play_cue(kind: StringName) -> void:
 	match kind:

@@ -8,6 +8,7 @@ var _context: Dictionary = {}
 var _hold: float = 0.0
 var _ended: bool = false
 var _objective_tick: float = 0.0
+var current_purity: float = 0.0
 
 func _ready() -> void:
 	EventBus.mission_selected.connect(_on_mission_selected)
@@ -17,6 +18,7 @@ func _ready() -> void:
 	EventBus.target_bound.connect(_on_target_bound)
 	EventBus.host_arrived.connect(func() -> void: _context["host_arrived"] = true)
 	EventBus.enemy_defeated.connect(_on_enemy_defeated)
+	EventBus.boss_defeated.connect(_on_boss_defeated)
 	_on_mission_selected(0, load(GameState.MISSION_PATHS[0]))
 
 func _process(delta: float) -> void:
@@ -65,6 +67,8 @@ func _all_objectives_complete() -> bool:
 	for objective: MissionObjective in objectives:
 		if not objective.is_complete(_context):
 			return false
+	if current_mission != null and current_mission.boss_kind != &"" and not bool(_context.get("boss_defeated", false)):
+		return false
 	return true
 
 func _emit_objectives() -> void:
@@ -73,6 +77,9 @@ func _emit_objectives() -> void:
 	for objective: MissionObjective in objectives:
 		labels.append(objective.label)
 		states.append(1 if objective.is_complete(_context) else 0)
+	if current_mission != null and current_mission.boss_kind != &"":
+		labels.append("OVERTHROW %s" % current_mission.boss_name)
+		states.append(1 if bool(_context.get("boss_defeated", false)) else 0)
 	EventBus.objective_state_changed.emit(labels, states)
 
 func _end(success: bool, reason: String) -> void:
@@ -83,6 +90,7 @@ func _end(success: bool, reason: String) -> void:
 	EventBus.audio_requested.emit(&"victory" if success else &"failure")
 
 func _on_field_changed(_values: PackedFloat32Array, _width: int, _height: int, purity: float, anchor: float) -> void:
+	current_purity = purity
 	_context["purity"] = purity
 	_context["anchor"] = anchor
 	if current_mission != null:
@@ -100,6 +108,10 @@ func _on_enemy_defeated(kind: StringName, _position: Vector3) -> void:
 	if kind == &"SYNTHETIC":
 		_context["synthetics_defeated"] = int(_context.get("synthetics_defeated", 0)) + 1
 
+func _on_boss_defeated(_kind: StringName) -> void:
+	_context["boss_defeated"] = true
+	_emit_objectives()
+
 func _on_game_started() -> void:
 	_ended = false
 	_hold = 0.0
@@ -111,6 +123,7 @@ func _on_game_started() -> void:
 		"bound_target": false,
 		"host_arrived": false,
 		"synthetics_defeated": 0,
+		"boss_defeated": false,
 		"elapsed": 0.0
 	}
 	_emit_objectives()
@@ -119,4 +132,5 @@ func _reset_for_test() -> void:
 	_hold = 0.0
 	_ended = false
 	_context.clear()
+	current_purity = 0.0
 	_on_mission_selected(0, load(GameState.MISSION_PATHS[0]))

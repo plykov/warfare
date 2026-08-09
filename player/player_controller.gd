@@ -13,7 +13,7 @@ const GRAVITY: float = 25.0
 const OPHANIM_DASH_SPEED: float = 18.0
 const OPHANIM_DASH_COOLDOWN: float = 1.15
 const ASCENT_GLORY_PER_SECOND: float = 9.0
-const MOUSE_SENSITIVITY: float = 0.0018
+const BASE_MOUSE_SENSITIVITY: float = 0.0018
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -22,6 +22,10 @@ const MOUSE_SENSITIVITY: float = 0.0018
 var _dash_cooldown: float = 0.0
 var _was_grounded: bool = false
 var _veiled_speed_scale: float = 1.0
+var _mouse_sensitivity: float = 1.0
+var _screen_shake: float = 0.75
+var _shake_remaining: float = 0.0
+var _head_rest: Vector3
 
 func _ready() -> void:
 	add_to_group("player")
@@ -29,19 +33,23 @@ func _ready() -> void:
 	EventBus.entered_veiled.connect(func() -> void: _veiled_speed_scale = 0.8)
 	EventBus.exited_veiled.connect(func() -> void: _veiled_speed_scale = 1.0)
 	EventBus.player_dashed.connect(_on_chariot_impulse)
+	EventBus.settings_changed.connect(_on_settings_changed)
+	EventBus.combat_feedback.connect(_on_combat_feedback)
+	_on_settings_changed(SettingsState.values)
+	_head_rest = head.position
 	camera.set_cull_mask_value(16, false)
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and GameState.is_playing():
 		var motion := event as InputEventMouseMotion
-		rotate_y(-motion.relative.x * MOUSE_SENSITIVITY)
-		head.rotation.x = clampf(head.rotation.x - motion.relative.y * MOUSE_SENSITIVITY, deg_to_rad(-88.0), deg_to_rad(88.0))
+		rotate_y(-motion.relative.x * BASE_MOUSE_SENSITIVITY * _mouse_sensitivity)
+		head.rotation.x = clampf(head.rotation.x - motion.relative.y * BASE_MOUSE_SENSITIVITY * _mouse_sensitivity, deg_to_rad(-88.0), deg_to_rad(88.0))
 
 func _physics_process(delta: float) -> void:
 	if not GameState.is_playing():
 		return
+	_shake_remaining = maxf(0.0, _shake_remaining - delta)
+	head.position = _head_rest + (Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), 0.0) * _shake_remaining * _screen_shake if _shake_remaining > 0.0 else Vector3.ZERO)
 	_dash_cooldown = maxf(0.0, _dash_cooldown - delta)
 	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var wish_direction: Vector3 = (global_basis * Vector3(input.x, 0.0, input.y)).normalized()
@@ -106,3 +114,12 @@ func _on_chariot_impulse() -> void:
 
 func _on_game_started() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _on_settings_changed(values: Dictionary) -> void:
+	_mouse_sensitivity = float(values.get(&"mouse_sensitivity", 1.0))
+	_screen_shake = float(values.get(&"screen_shake", 0.75))
+
+func _on_combat_feedback(kind: StringName, position: Vector3, _tint: Color, strength: float) -> void:
+	if kind in [&"impact", &"boss_phase", &"boss_surge"]:
+		var distance_scale: float = 1.0 / maxf(1.0, global_position.distance_to(position) * 0.18)
+		_shake_remaining = maxf(_shake_remaining, minf(0.16, strength * 0.012) * distance_scale)

@@ -15,6 +15,7 @@ const WEAPON_PATHS: PackedStringArray = [
 	"res://weapons/data/11_millstone.tres",
 	"res://weapons/data/12_drawn_bow.tres"
 ]
+const JUDGMENT_ZONE_SCRIPT: Script = preload("res://world/judgment_zone.gd")
 
 @onready var camera: Camera3D = get_parent() as Camera3D
 @onready var weapon_model: MeshInstance3D = $WeaponModel
@@ -75,6 +76,7 @@ func _equip(index: int) -> void:
 		weapon_model.rotation = Vector3(-0.12, -0.05, 0.08)
 	weapon_model.mesh = mesh
 	EventBus.weapon_switched.emit(current_index, weapon.display_name)
+	EventBus.weapon_context_changed.emit(weapon.role, weapon.counterplay)
 
 func _fire(alt: bool) -> void:
 	if cooldown > 0.0:
@@ -97,6 +99,7 @@ func _fire(alt: bool) -> void:
 	muzzle_light.light_energy = 4.0
 	EventBus.weapon_fired.emit(weapon.weapon_id)
 	EventBus.audio_requested.emit(&"purify")
+	EventBus.combat_feedback.emit(&"muzzle", camera.global_position + -camera.global_basis.z * 1.2, weapon.tint, 1.0)
 
 	match weapon.weapon_id:
 		&"flaming_sword", &"sickle":
@@ -110,6 +113,9 @@ func _fire(alt: bool) -> void:
 				EventBus.bind_requested.emit(chained.collider, 4.0)
 				EventBus.damage_requested.emit(chained.collider, weapon.damage, weapon.damage_type, chained.position)
 		&"measuring_rod":
+			for enemy: Node in get_tree().get_nodes_in_group("enemies"):
+				if enemy is Node3D and (enemy as Node3D).global_position.distance_to(camera.global_position) <= weapon.radius:
+					EventBus.mark_requested.emit(enemy, 4.0 if not alt else 7.0)
 			EventBus.message_posted.emit("SURVEY COMPLETE // HOSTILES AND CORRUPTION REVEALED", &"info")
 			EventBus.audio_requested.emit(&"declare")
 		&"inkhorn":
@@ -127,10 +133,13 @@ func _fire(alt: bool) -> void:
 			_area_strike(position, weapon)
 			if weapon.damage_type != &"kinetic":
 				EventBus.purification_requested.emit(position, weapon.radius, 0.72)
+			if weapon.weapon_id in [&"live_coal", &"bowl_of_wrath"]:
+				_spawn_zone(position, weapon, alt)
 		&"drawn_bow":
 			var hit: Dictionary = _ray_hit(weapon.range)
 			if not hit.is_empty():
 				EventBus.damage_requested.emit(hit.collider, weapon.damage, weapon.damage_type, hit.position)
+				_apply_impulse(hit.collider, hit.position, weapon)
 		_:
 			pass
 
@@ -145,6 +154,7 @@ func _melee_sweep(weapon: WeaponResource, alt: bool) -> void:
 			var facing: float = (-camera.global_basis.z).dot(to_enemy.normalized())
 			if facing > (0.1 if alt else 0.48):
 				EventBus.damage_requested.emit(enemy, weapon.damage * (0.75 if alt else 1.0), weapon.damage_type, target.global_position)
+				_apply_impulse(enemy, target.global_position, weapon)
 	EventBus.purification_requested.emit(origin + -camera.global_basis.z * 2.0, weapon.radius, 0.45)
 
 func _area_strike(position: Vector3, weapon: WeaponResource) -> void:
@@ -155,6 +165,24 @@ func _area_strike(position: Vector3, weapon: WeaponResource) -> void:
 			if distance <= weapon.radius:
 				var falloff: float = 1.0 - distance / maxf(weapon.radius, 0.01) * 0.5
 				EventBus.damage_requested.emit(enemy, weapon.damage * falloff, weapon.damage_type, target.global_position)
+				_apply_impulse(enemy, target.global_position, weapon)
+	EventBus.combat_feedback.emit(&"impact", position, weapon.tint, weapon.radius)
+
+func _apply_impulse(target: Node, position: Vector3, weapon: WeaponResource) -> void:
+	if weapon.impulse <= 0.0:
+		return
+	var direction: Vector3 = position - camera.global_position
+	EventBus.impulse_requested.emit(target, direction, weapon.impulse)
+
+func _spawn_zone(position: Vector3, weapon: WeaponResource, alt: bool) -> void:
+	var zone: JudgmentZone = JUDGMENT_ZONE_SCRIPT.new() as JudgmentZone
+	zone.position = position
+	zone.radius = weapon.radius * (1.2 if alt else 1.0)
+	zone.duration = (4.8 if weapon.weapon_id == &"bowl_of_wrath" else 2.2) * (1.25 if alt else 1.0)
+	zone.damage_per_pulse = weapon.damage * 0.18
+	zone.damage_type = weapon.damage_type
+	zone.tint = weapon.tint
+	get_tree().current_scene.add_child(zone)
 
 func _ray_hit(distance: float) -> Dictionary:
 	var from: Vector3 = camera.global_position
