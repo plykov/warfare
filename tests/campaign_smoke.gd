@@ -2,10 +2,28 @@ extends Node
 
 const MAIN_SCENE: PackedScene = preload("res://main.tscn")
 
+## Root cause of two previous "timing flake" fixes that only reduced rather
+## than eliminated the failure rate (see PHASE2_SCOPE.md): this was never a
+## synchronization bug. A frame-220 diagnostic capture on a real failing run
+## showed the boss reaching phase 3 exactly as expected, then being fully
+## defeated (queue_free()'d) by ambient incidental damage - not the test's
+## scripted hit - sometime in the remaining ~140 frames. A defeated boss is
+## a *stronger* success signal than "reached phase >= 2", not a failure; the
+## bug was checking live node state at the very end instead of tracking what
+## actually happened over the run. boss_state_changed/boss_defeated already
+## fire everything needed - just listen instead of inspecting a node that
+## may legitimately no longer exist.
+var _boss_spawned: bool = false
+var _boss_peak_phase: int = 0
+var _boss_was_defeated: bool = false
+
 func _ready() -> void:
 	GameState._reset_for_test()
 	GameState.unlocked_count = 8
 	GameState.select_mission(7)
+	EventBus.boss_spawn_requested.connect(func(_k: StringName, _t: String, _p: float) -> void: _boss_spawned = true)
+	EventBus.boss_state_changed.connect(func(_title: String, _integrity: float, _maximum: float, phase: int) -> void: _boss_peak_phase = maxi(_boss_peak_phase, phase))
+	EventBus.boss_defeated.connect(func(_kind: StringName) -> void: _boss_was_defeated = true)
 	var game := MAIN_SCENE.instantiate()
 	add_child(game)
 	await get_tree().process_frame
@@ -14,16 +32,7 @@ func _ready() -> void:
 	for frame: int in range(360):
 		if frame == 5:
 			GameState.elapsed = 49.0
-			# EncounterDirector's boss-trigger check only runs on its own 0.5s
-			# tick, which is paced by real per-frame delta - "reset the tick
-			# and wait for the next engine frame" turned out to still be a
-			# timing race (observed passing 10/10 locally and on 3-platform CI
-			# once, then failing on a later identical-code CI run). Call
-			# _process() synchronously instead so the check - and the boss
-			# spawn it triggers - happens on this exact statement, not on
-			# whatever the engine's next scheduled frame turns out to be.
 			EncounterDirector._tick = 0.0
-			EncounterDirector._process(0.0)
 		if frame == 30:
 			EventBus.purification_requested.emit(Vector3.ZERO, 70.0, 0.72)
 		if frame == 120:
@@ -39,26 +48,13 @@ func _ready() -> void:
 			for enemy: Node in get_tree().get_nodes_in_group("enemies"):
 				if enemy is TerritorialPrince:
 					EventBus.damage_requested.emit(enemy, 600.0, &"kinetic", (enemy as Node3D).global_position)
-					# TerritorialPrince.phase only advances inside its own
-					# _physics_process(), which runs on the engine's independent
-					# physics schedule - decoupled from this idle-frame loop, and
-					# not guaranteed to fire again before the loop ends. Force one
-					# synchronous update so the phase check below isn't a second
-					# timing race layered on top of the boss-spawn one above.
-					(enemy as TerritorialPrince)._physics_process(0.0)
 		await get_tree().process_frame
 	if RankSystem.rank_index != 7:
 		push_error("Final commission must manifest ONE OF THE SEVEN")
 		get_tree().quit(1)
 		return
-	var prince := get_tree().get_first_node_in_group("enemies") as EnemyBase
-	var boss_verified: bool = false
-	for enemy: Node in get_tree().get_nodes_in_group("enemies"):
-		if enemy is TerritorialPrince:
-			prince = enemy as EnemyBase
-			boss_verified = (enemy as TerritorialPrince).phase >= 2
-			break
-	if not boss_verified or prince == null:
+	var boss_verified: bool = _boss_spawned and (_boss_peak_phase >= 2 or _boss_was_defeated)
+	if not boss_verified:
 		push_error("Final commission must spawn and phase an Accuser boss")
 		get_tree().quit(1)
 		return
