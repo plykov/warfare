@@ -216,15 +216,27 @@ shape — something that only breaks under real engine execution, never visible 
 1. macOS export needed `rendering/textures/vram_compression/import_etc2_astc=true` at the project level,
    not just the per-preset export option.
 2. `tests/campaign_smoke.gd`'s boss-spawn timing depended on `EncounterDirector`'s tick cooldown, paced by
-   real per-frame delta, which varies between the debug editor run and the exported release binary.
+   real per-frame delta, which varies between the debug editor run and the exported release binary. First
+   fix: reset the tick and let the engine's next scheduled frame pick it up.
 3. `RenderingServer.global_shader_parameter_get()` returns `Nil` for every parameter type under
    `--headless`, and `ImageTexture.get_image()` has the same readback problem — both discovered by CI, not
    guessed.
 4. Separately from (2), `TerritorialPrince.phase` only updates inside its own `_physics_process()`, which
    runs on the engine's independent physics schedule — decoupled from `campaign_smoke.gd`'s idle-frame test
-   loop, and not guaranteed to run again before the loop ends.
+   loop, and not guaranteed to run again before the loop ends. First fix: force one synchronous
+   `_physics_process(0.0)` call right after dealing the test's damage.
+5. **(2) and (4) together were still not enough** — the exact same application code (unchanged) passed
+   3-platform CI plus 10 local repetitions once, then failed the identical assertion on a *later* CI run
+   with zero code changes in between. "Reset the tick and trust the next engine frame" was never fully
+   deterministic, just lower-probability. The actual fix: call `EncounterDirector._process(0.0)` directly
+   and synchronously at the moment the test needs the boss to exist, rather than nudging engine-scheduled
+   timing and hoping. Combined with (4)'s fix, both halves of this test (boss spawns, boss reaches the
+   required phase) are now driven by explicit synchronous calls the test controls, with no remaining
+   dependency on how many real engine frames land in a given window.
 
-M18a's manual play check (see above) is the fifth and final confirmation: the shader was reviewed by hand,
-passed headless CI, and has now actually been watched rendering on real hardware. Treat this as the honest
-bar for "done" on anything shader/rendering-adjacent in this repo going forward — headless-green alone was
-demonstrably not sufficient here, four times over.
+M18a's manual play check (see above) confirms the shader itself: reviewed by hand, passed headless CI, and
+watched rendering on real hardware. But (5) is the one to actually internalize from this phase: a fix that
+"passes CI" and even "passes 10 repeated local runs" is not the same as a fix that removes the underlying
+race — it can just make the race rarer. For anything timing-shaped (frame-count-based tests, tick
+cooldowns, physics-vs-idle-frame coupling), prefer removing the race entirely (call the thing directly,
+synchronously) over reducing its probability.

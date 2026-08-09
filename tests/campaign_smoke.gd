@@ -15,12 +15,15 @@ func _ready() -> void:
 		if frame == 5:
 			GameState.elapsed = 49.0
 			# EncounterDirector's boss-trigger check only runs on its own 0.5s
-			# tick, which is paced by real per-frame delta and can therefore
-			# take a very different number of frames to fire depending on host
-			# speed (editor debug run vs. exported release binary). Force it
-			# to fire on the very next frame so the 220-frame damage window
-			# below is not a timing race.
+			# tick, which is paced by real per-frame delta - "reset the tick
+			# and wait for the next engine frame" turned out to still be a
+			# timing race (observed passing 10/10 locally and on 3-platform CI
+			# once, then failing on a later identical-code CI run). Call
+			# _process() synchronously instead so the check - and the boss
+			# spawn it triggers - happens on this exact statement, not on
+			# whatever the engine's next scheduled frame turns out to be.
 			EncounterDirector._tick = 0.0
+			EncounterDirector._process(0.0)
 		if frame == 30:
 			EventBus.purification_requested.emit(Vector3.ZERO, 70.0, 0.72)
 		if frame == 120:
