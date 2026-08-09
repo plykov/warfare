@@ -27,9 +27,14 @@ func _run() -> void:
 	_test_rank_doctrine_profiles()
 	_test_debug_console_commands()
 	_test_sevenfold_authority_gate()
+	_test_three_law_legislation()
+	_test_projectile_parry()
+	_test_faction_combat_profiles()
+	_test_support_authority_interactions()
+	_test_chapter_arena_recipes()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 20 passed")
+		print("GARDEN RECLAIMED TESTS: 25 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -248,6 +253,68 @@ func _test_sevenfold_authority_gate() -> void:
 	GameState._reset_for_test()
 	RankSystem._reset_for_test()
 	IntercessorSystem._reset_for_test()
+
+func _test_three_law_legislation() -> void:
+	GameState.phase = GameState.Phase.PLAYING
+	IntercessorSystem._reset_for_test()
+	_assert(IntercessorSystem.LAW_IDS.size() == 3, "The territorial law selector must expose all three authored laws")
+	EventBus.law_selection_requested.emit(1)
+	_assert(IntercessorSystem.selected_law == 1, "Law selection must cycle without immediately spending Fervency")
+	EventBus.legislation_commit_requested.emit(&"GARDEN")
+	_assert(IntercessorSystem.has_law(&"GARDEN", &"NO_UNCLEAN_ENTRY"), "Committing the selected law must enact No Unclean Entry")
+	_assert(is_equal_approx(IntercessorSystem.fervency, 55.0), "Each territorial law must spend its authored Fervency cost")
+	var revealed_fallen := FallenEnemy.new()
+	get_tree().root.add_child(revealed_fallen)
+	EventBus.zone_laws_changed.emit({&"GARDEN": [&"NO_HIDDEN_THING"]})
+	_assert(is_inf(revealed_fallen.marked_remaining), "No Hidden Thing must permanently reveal Fallen within the legislated garden")
+	revealed_fallen.queue_free()
+	GameState._reset_for_test()
+	IntercessorSystem._reset_for_test()
+
+func _test_projectile_parry() -> void:
+	var projectile := HostileProjectile.new()
+	projectile.configure(Vector3.ZERO, Vector3.FORWARD, 10.0, 9.0, &"FALLEN")
+	get_tree().root.add_child(projectile)
+	EventBus.projectile_parry_requested.emit(Vector3.ZERO, 2.0, Vector3.RIGHT)
+	_assert(projectile.holy, "Flaming Sword parry must convert a hostile projectile into holy ordnance")
+	_assert(projectile.direction.is_equal_approx(Vector3.RIGHT), "A parried projectile must follow the player's return direction")
+	_assert(is_equal_approx(projectile.speed, 14.0), "Deflection must accelerate the returned projectile")
+	projectile.queue_free()
+
+func _test_faction_combat_profiles() -> void:
+	var fallen := FallenEnemy.new()
+	var synthetic := SyntheticEnemy.new()
+	var demon := EnemyBase.new()
+	_assert(fallen.uses_projectiles, "Fallen enemies must provide the campaign's ranged projectile pressure")
+	_assert(not synthetic.spreads_corruption, "Synthetic enemies must remain fabricated rather than corrupting ground")
+	_assert(demon.spreads_corruption and not demon.uses_projectiles, "Demons must retain objective pressure as their distinct combat profile")
+	fallen.free()
+	synthetic.free()
+	demon.free()
+
+func _test_support_authority_interactions() -> void:
+	GameState.phase = GameState.Phase.PLAYING
+	IntercessorSystem._reset_for_test()
+	var converted: float = IntercessorSystem.convert_fervency(28.0)
+	_assert(is_equal_approx(converted, 28.0) and is_equal_approx(IntercessorSystem.fervency, 72.0), "Censer conversion must consume and report stored prayer exactly")
+	var host := HostMember.new()
+	get_tree().root.add_child(host)
+	EventBus.seal_requested.emit(host, 10.0)
+	_assert(float(host.get("_sealed_remaining")) >= 10.0, "Inkhorn ally marking must seal a Host member against withdrawal")
+	host.queue_free()
+	GameState._reset_for_test()
+	IntercessorSystem._reset_for_test()
+
+func _test_chapter_arena_recipes() -> void:
+	var fingerprints: Dictionary = {}
+	for chapter: int in range(8):
+		var recipe: Array[Dictionary] = ChapterArena.recipe_for(chapter)
+		_assert(recipe.size() >= 4, "Every campaign chapter must author meaningful traversable geometry")
+		fingerprints[JSON.stringify(recipe)] = true
+		for definition: Dictionary in recipe:
+			var at: Vector3 = definition.position
+			_assert(Vector2(at.x, at.z).length() > 4.0, "Chapter geometry must keep the central Thin Place clear")
+	_assert(fingerprints.size() == 8, "All eight chapters must form a distinct arena silhouette")
 
 func _assert(condition: bool, message: String) -> void:
 	if not condition:

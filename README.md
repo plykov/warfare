@@ -4,6 +4,15 @@ A playable Godot 4.4 campaign slice of a Quake-style territorial FPS where death
 
 You are **ARIEL**, a Seraph-class servant-warrior. Incoming damage drains Glory instead of health. At zero Glory ARIEL becomes **Veiled**: slower, dimmed, and unable to purify the garden. Corruption keeps spreading, and the mission fails only if it reclaims the Thin Place at the garden's heart.
 
+## v0.4.0 — Authority and Arenas
+
+- Territorial legislation now offers three selectable, persistent laws: Ground Holds, No Unclean Entry, and No Hidden Thing.
+- Fallen and territorial princes fire visible hostile ordnance; Flaming Sword alternate fire parries it back as holy damage.
+- Demons, Fallen, and Synthetics now have explicit objective, engagement, and repositioning profiles.
+- Censer converts Fervency into blast power, Inkhorn seals Host allies, Bow creates slowing terrain, Key binds longer, and Chariot gains a charged ram.
+- All eight commissions form distinct traversable arena silhouettes, from Watcher steps to the Sevenfold ascent.
+- CI runs 25 deterministic unit tests plus gameplay, campaign, balance, exported-executable, and Windows package checks.
+
 ## v0.3.0 — The Living Garden
 
 - Exact per-commission corruption fields, territorial laws, and Pride now persist in save schema v3 and return on replay.
@@ -27,7 +36,7 @@ Open `project.godot` in Godot 4.4.1 and run the project, or download the Windows
 - `WASD` move; mouse look; `Space` jump/hold to ascend; `Shift` Ophanim Dash
 - `1`–`0`, `[` and `]` equip all twelve armaments; the wheel cycles
 - Left mouse fires; right mouse uses the alternate expression
-- Hold `Q` to Pray; `E` to Declare a Commission Token; `R` to Legislate `GROUND_HOLDS`
+- Hold `Q` to Pray; `E` to Declare; `Z`/`C` select a territorial law and `R` enacts it
 - `F` reveals tactical state; `Esc` pauses and opens accessibility settings
 - `X` invokes Sevenfold Judgment at the final rank; backtick opens the field console
 

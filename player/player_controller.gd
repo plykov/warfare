@@ -35,6 +35,7 @@ func _ready() -> void:
 	EventBus.entered_veiled.connect(func() -> void: _veiled_speed_scale = 0.8)
 	EventBus.exited_veiled.connect(func() -> void: _veiled_speed_scale = 1.0)
 	EventBus.player_dashed.connect(_on_chariot_impulse)
+	EventBus.player_impulse_requested.connect(_on_weapon_impulse)
 	EventBus.settings_changed.connect(_on_settings_changed)
 	EventBus.combat_feedback.connect(_on_combat_feedback)
 	EventBus.rank_profile_changed.connect(_on_rank_profile_changed)
@@ -122,6 +123,10 @@ func _accelerate(wish_direction: Vector3, wish_speed: float, acceleration: float
 func _on_chariot_impulse() -> void:
 	if GameState.is_playing():
 		velocity += -global_basis.z * 4.0
+
+func _on_weapon_impulse(strength: float) -> void:
+	if GameState.is_playing():
+		velocity += -global_basis.z * maxf(0.0, strength)
 
 func _on_game_started() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

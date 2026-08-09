@@ -11,6 +11,7 @@ func _init() -> void:
 	attack_damage = 18.0
 	tint = Color(0.17, 0.19, 0.21)
 	scale_factor = 1.35
+	spreads_corruption = false
 
 func _physics_process(delta: float) -> void:
 	_immune_notice_cooldown = maxf(0.0, _immune_notice_cooldown - delta)

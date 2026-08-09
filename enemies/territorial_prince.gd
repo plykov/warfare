@@ -14,6 +14,10 @@ func _init() -> void:
 	attack_interval = 1.15
 	tint = Color(0.42, 0.03, 0.5)
 	scale_factor = 1.9
+	uses_projectiles = true
+	projectile_damage = 15.0
+	projectile_speed = 10.5
+	projectile_interval = 0.9
 
 func configure(boss_kind: StringName, boss_title: String, power: float) -> void:
 	kind = boss_kind

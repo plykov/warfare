@@ -39,6 +39,7 @@ var doctrine_label: Label
 var debug_overlay: PanelContainer
 var debug_log: Label
 var debug_input: LineEdit
+var law_label: Label
 var _message_time: float = 0.0
 var _hit_time: float = 0.0
 var _subtitles_enabled: bool = true
@@ -68,7 +69,11 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("declare"):
 		IntercessorSystem.declare()
 	if Input.is_action_just_pressed("legislate"):
-		IntercessorSystem.legislate(&"GARDEN", &"GROUND_HOLDS")
+		EventBus.legislation_commit_requested.emit(&"GARDEN")
+	if Input.is_action_just_pressed("law_next"):
+		EventBus.law_selection_requested.emit(1)
+	if Input.is_action_just_pressed("law_prev"):
+		EventBus.law_selection_requested.emit(-1)
 	if Input.is_action_just_pressed("reveal") and GameState.is_playing():
 		_post_message("MEASURING SIGHT // BLACK IS CORRUPT, GREEN IS HELD", &"info")
 
@@ -228,7 +233,10 @@ func _build_gameplay() -> void:
 	right.add_child(fervency_bar)
 	commission_label = _label("NO COMMISSION HELD", 14, Color(0.62, 0.62, 0.58))
 	right.add_child(commission_label)
-	right.add_child(_label("HOLD Q  PRAY / REGEN\nPRESS E  DECLARE / REBUKE\nPRESS R  LEGISLATE / GROUND HOLDS", 13, Color(0.74, 0.74, 0.7)))
+	law_label = _label("LAW [Z/C] // GROUND HOLDS // 55F", 12, Color(0.55, 0.78, 1.0))
+	law_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	right.add_child(law_label)
+	right.add_child(_label("HOLD Q  PRAY / REGEN\nPRESS E  DECLARE / REBUKE\nPRESS R  ENACT / SELECTED LAW", 13, Color(0.74, 0.74, 0.7)))
 
 	weapon_label = _label("01 // FLAMING SWORD", 20, PALE)
 	weapon_label.position = Vector2(590, 818)
@@ -415,6 +423,7 @@ func _connect_signals() -> void:
 	EventBus.pause_changed.connect(func(paused: bool) -> void: pause_overlay.visible = paused)
 	EventBus.settings_changed.connect(_on_settings_changed)
 	EventBus.commission_state_changed.connect(_on_commission_changed)
+	EventBus.law_selection_changed.connect(_on_law_selection_changed)
 	EventBus.entered_veiled.connect(_on_veiled)
 	EventBus.exited_veiled.connect(_on_radiant)
 	EventBus.rank_changed.connect(func(_index: int, name: String) -> void: state_label.text = "%s // RADIANT" % name)
@@ -537,6 +546,9 @@ func _on_progress_changed(purity: float, target: float) -> void:
 func _on_commission_changed(active: bool, remaining: float) -> void:
 	commission_label.text = "COMMISSION // REBUKE %.1fs" % remaining if active else "NO COMMISSION HELD"
 	commission_label.add_theme_color_override("font_color", GOLD if active else Color(0.62, 0.62, 0.58))
+
+func _on_law_selection_changed(_index: int, _law_id: StringName, label: String, description: String, cost: float) -> void:
+	law_label.text = "LAW [Z/C] // %s // %dF\n%s" % [label, roundi(cost), description.to_upper()]
 
 func _on_veiled() -> void:
 	veil_overlay.color = Color(0.03, 0.01, 0.045, 0.66)

@@ -12,6 +12,9 @@ func _init() -> void:
 	attack_damage = 13.0
 	tint = Color(0.18, 0.04, 0.28)
 	scale_factor = 1.2
+	uses_projectiles = true
+	projectile_damage = 11.0
+	projectile_speed = 14.0
 
 func _ready() -> void:
 	super._ready()

@@ -7,20 +7,25 @@ const ATTACK_INTERVAL: float = 0.55
 var _life: float = LIFETIME
 var _attack: float = 0.0
 var _phase: float = 0.0
+var _sealed_remaining: float = 0.0
 
 func _ready() -> void:
+	add_to_group("host")
+	EventBus.seal_requested.connect(_on_seal_requested)
 	_build_visual()
 
 func _process(delta: float) -> void:
 	if not GameState.is_playing():
 		return
-	_life -= delta
+	_sealed_remaining = maxf(0.0, _sealed_remaining - delta)
+	if _sealed_remaining <= 0.0:
+		_life -= delta
 	_attack -= delta
 	_phase += delta
 	position.y = 1.4 + sin(_phase * 2.4) * 0.25
 	rotate_y(delta * 0.7)
 	if _attack <= 0.0:
-		_attack = ATTACK_INTERVAL
+		_attack = ATTACK_INTERVAL * (0.62 if _sealed_remaining > 0.0 else 1.0)
 		_strike()
 	if _life <= 0.0:
 		EventBus.host_withdrawn.emit()
@@ -42,8 +47,16 @@ func _strike() -> void:
 			best_score = score
 			best = enemy
 	if best != null:
-		EventBus.damage_requested.emit(best, 16.0, &"purify", best.global_position)
+		EventBus.damage_requested.emit(best, 24.0 if _sealed_remaining > 0.0 else 16.0, &"purify", best.global_position)
 		EventBus.purification_requested.emit(best.global_position, 2.5, 0.12)
+
+func _on_seal_requested(target: Node, duration: float) -> void:
+	if target != self:
+		return
+	_sealed_remaining = maxf(_sealed_remaining, duration)
+	EventBus.target_sealed.emit(&"HOST")
+	EventBus.message_posted.emit("INKHORN SEAL // HOST MEMBER HELD IN SERVICE", &"holy")
+	EventBus.combat_feedback.emit(&"impact", global_position, Color(1.0, 0.78, 0.28), 3.0)
 
 func _build_visual() -> void:
 	var material := StandardMaterial3D.new()

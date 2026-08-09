@@ -15,6 +15,17 @@ var _attack_cooldown: float = 0.0
 var _pulse: float = 0.0
 var _body_material: StandardMaterial3D
 var _last_damage_type: StringName = &"purify"
+var ai_state: StringName = &"SEEK_OBJECTIVE"
+var spreads_corruption: bool = true
+var uses_projectiles: bool = false
+var projectile_damage: float = 9.0
+var projectile_speed: float = 12.0
+var projectile_interval: float = 1.5
+var _ranged_cooldown: float = 0.0
+var _no_unclean_entry: bool = false
+var _no_hidden_thing: bool = false
+var _slow_remaining: float = 0.0
+var _slow_scale: float = 1.0
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -25,13 +36,22 @@ func _ready() -> void:
 	EventBus.bind_requested.connect(_on_bind_requested)
 	EventBus.mark_requested.connect(_on_mark_requested)
 	EventBus.impulse_requested.connect(_on_impulse_requested)
+	EventBus.zone_laws_changed.connect(_on_zone_laws_changed)
+	EventBus.slow_requested.connect(_on_slow_requested)
+	_on_zone_laws_changed(IntercessorSystem.zone_laws)
 
 func _physics_process(delta: float) -> void:
 	if not GameState.is_playing():
 		return
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
+	_ranged_cooldown = maxf(0.0, _ranged_cooldown - delta)
+	_slow_remaining = maxf(0.0, _slow_remaining - delta)
+	if _slow_remaining <= 0.0:
+		_slow_scale = 1.0
 	bound_remaining = maxf(0.0, bound_remaining - delta)
 	marked_remaining = maxf(0.0, marked_remaining - delta)
+	if _no_hidden_thing and kind == &"FALLEN":
+		marked_remaining = INF
 	_pulse += delta
 	_update_visual()
 
@@ -40,17 +60,29 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = -0.2
 	if bound_remaining <= 0.0:
-		var target_position: Vector3 = Vector3.ZERO
 		var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
-		if player != null and global_position.distance_to(player.global_position) < 7.5:
+		var player_distance: float = global_position.distance_to(player.global_position) if player != null else INF
+		var next_state: StringName = &"ENGAGE_PLAYER" if player_distance < 7.5 else (&"REPOSITION" if uses_projectiles and player_distance < 17.0 else &"SEEK_OBJECTIVE")
+		if _no_unclean_entry and kind == &"DEMON" and Vector2(global_position.x, global_position.z).length() < 8.5:
+			next_state = &"REPOSITION"
+		_set_ai_state(next_state)
+		var target_position: Vector3 = Vector3.ZERO
+		if ai_state == &"ENGAGE_PLAYER" and player != null:
 			target_position = player.global_position
+		elif ai_state == &"REPOSITION":
+			var radial := Vector3(global_position.x, 0.0, global_position.z).normalized()
+			target_position = global_position + radial * 4.0 + Vector3(-radial.z, 0.0, radial.x) * 2.5
 		var direction: Vector3 = target_position - global_position
 		direction.y = 0.0
 		if direction.length_squared() > 0.1:
 			direction = direction.normalized()
-			velocity.x = direction.x * speed
-			velocity.z = direction.z * speed
+			velocity.x = direction.x * speed * _slow_scale
+			velocity.z = direction.z * speed * _slow_scale
 			look_at(global_position + direction, Vector3.UP)
+		if uses_projectiles and player != null and player_distance > 3.2 and player_distance < 18.0 and _ranged_cooldown <= 0.0:
+			_ranged_cooldown = projectile_interval
+			var shot_direction: Vector3 = (player.global_position + Vector3.UP - (global_position + Vector3.UP * 1.4)).normalized()
+			EventBus.hostile_projectile_requested.emit(global_position + Vector3.UP * 1.4, shot_direction, projectile_speed, projectile_damage, kind)
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, delta * 15.0)
 		velocity.z = move_toward(velocity.z, 0.0, delta * 15.0)
@@ -64,7 +96,8 @@ func _physics_process(delta: float) -> void:
 	elif Vector2(global_position.x, global_position.z).length() < 2.7 and _attack_cooldown <= 0.0:
 		_attack_cooldown = attack_interval
 		EventBus.thin_place_damage_requested.emit(attack_damage * 0.7)
-	EventBus.corruption_requested.emit(global_position, 1.55, delta * 0.11)
+	if spreads_corruption:
+		EventBus.corruption_requested.emit(global_position, 1.55, delta * 0.11)
 
 func can_take_damage(damage_type: StringName) -> bool:
 	return damage_type != &"utility" and damage_type != &"mark"
@@ -86,6 +119,25 @@ func _on_impulse_requested(target: Node, direction: Vector3, strength: float) ->
 		return
 	var horizontal := Vector3(direction.x, 0.0, direction.z).normalized()
 	velocity += horizontal * strength
+
+func _on_slow_requested(target: Node, duration: float, scale: float) -> void:
+	if target != self:
+		return
+	_slow_remaining = maxf(_slow_remaining, duration)
+	_slow_scale = minf(_slow_scale, clampf(scale, 0.15, 1.0))
+
+func _set_ai_state(value: StringName) -> void:
+	if ai_state == value:
+		return
+	ai_state = value
+	EventBus.enemy_ai_state_changed.emit(kind, ai_state)
+
+func _on_zone_laws_changed(laws: Dictionary) -> void:
+	var garden_laws: Array = laws.get(&"GARDEN", laws.get("GARDEN", []))
+	_no_unclean_entry = &"NO_UNCLEAN_ENTRY" in garden_laws or "NO_UNCLEAN_ENTRY" in garden_laws
+	_no_hidden_thing = &"NO_HIDDEN_THING" in garden_laws or "NO_HIDDEN_THING" in garden_laws
+	if _no_hidden_thing and kind == &"FALLEN":
+		marked_remaining = INF
 
 func _on_bind_requested(target: Node, duration: float) -> void:
 	if target == self:
