@@ -209,3 +209,4 @@ law_next={
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 environment/defaults/default_clear_color=Color(0.012, 0.015, 0.018, 1)
+textures/vram_compression/import_etc2_astc=true
