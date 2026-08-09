@@ -22,7 +22,7 @@ contract.
 | **M15** | New Game+ / Mastery mode | **Done** | `autoload/game_state.gd`, `autoload/corruption_director.gd`, `autoload/encounter_director.gd`, `autoload/mission_director.gd`, `ui/hud.gd` | No new mission fields needed — NG+ is a single stacking multiplier consumed at the same read sites M13's difficulty setting already touches |
 | **M16** | Post-campaign challenge missions | **Done** | `missions/data/mission_09..12.tres`, `autoload/game_state.gd` (`MISSION_PATHS` extended) | Same reasoning the original doc used for M11: content only, composed from the 6 existing objective primitives, no seventh primitive, no new arena geometry |
 | **M17** | Cross-platform export | **Done** | `export_presets.cfg`, `scripts/verify.sh`, `scripts/build_export.sh`, `scripts/smoke_export.sh`, `.github/workflows/build.yml` | Godot's export system was already headless-verified for Windows in CI; this is config plus two new CI legs, not engine code |
-| **M18** | Art/audio pass | **Scoped, engine-side track approved** | See breakdown below | Splits into an asset-free "engine-side polish" track (approved, scoped below) and two asset-dependent tracks (art assets, audio assets) that stay blocked pending a source/budget decision |
+| **M18** | Art/audio pass | **Engine-side track (M18a-d) done. Art/audio tracks scoped, sourcing decided, not yet built** | See breakdown below | Engine-side polish (no assets) is fully shipped. Sourcing decision for the two asset-dependent tracks is now made — CC0 packs (Kenney.nl) for both art and audio — detailed sub-milestone scope handed to Codex; implementation not started |
 
 **Explicitly not in this scope:** multiplayer/co-op. Nothing in Phase 1 or in this list implies it, and it
 would be the first change to force `EventBus` to become multi-peer-aware — a real architecture change, not
@@ -121,22 +121,25 @@ gradeable without a human sourcing decision first:
 
 | Track | Needs external assets? | Status |
 |---|---|---|
-| **M18-engine** — shader/material/lighting/foliage polish | No — procedural only (`FastNoiseLite`, `NoiseTexture2D`, `ProceduralSkyMaterial`, hand-authored meshes) | **Approved, scoped below** |
-| **M18-art** — real 3D models/textures for arenas, weapons, characters | Yes — artist commission or a sourced/generated asset pack | Deferred pending a source/budget decision |
-| **M18-audio** — real music stems, SFX, voice-over | Yes — licensed library, composer, or AI-generated audio | Deferred pending a source/budget decision |
+| **M18-engine** — shader/material/lighting/foliage polish | No — procedural only (`FastNoiseLite`, `NoiseTexture2D`, `ProceduralSkyMaterial`, hand-authored meshes) | **Done — M18a-d all merged** |
+| **M18-art** — real 3D models/textures for arenas, weapons, characters | Yes — CC0 asset packs (decided) | Sourcing decided (Kenney.nl, CC0), sub-milestones scoped, implementation not started |
+| **M18-audio** — real music stems, SFX, voice-over | Yes — CC0 audio libraries (decided) | Sourcing decided (Kenney.nl, CC0), sub-milestones scoped, implementation not started |
 
 ### M18-engine breakdown
 
 | # | Item | Touches | Contract preserved |
 |---|---|---|---|
 | **M18a** | Shared corruption-mask shader | New `world/shaders/corruption.gdshader`; `autoload/corruption_director.gd` (publish an `R8` texture from `cells` instead of only holding the array); `main.gd` (ground tiles read the shader instead of getting per-tile `albedo_color` writes) | `CorruptionDirector.sample()`/`purify()`/`corrupt()` and every signal contract stay untouched — this is a rendering-layer swap under data that doesn't change. The `high_contrast` accessibility toggle becomes a shader uniform instead of a hardcoded branch, same visible behavior. **Done — CI-green and visually verified, see below.** |
-| **M18b** | Procedural sky + purity-reactive lighting | `main.gd` (`Environment.background_mode` from flat `BG_COLOR` to `ProceduralSkyMaterial`, driven by the same purity value that already drives fog) | No new signals — reads the same `zone_purity`-derived values `main.gd` already computes for fog/ambient color. |
-| **M18c** | Richer procedural materials on arena structures | `world/chapter_arena.gd`'s `_add_structure()` (add a runtime `FastNoiseLite`-driven normal/roughness detail pass to the existing `StandardMaterial3D`) | `ChapterArena.recipe_for()` — the actual geometry layout data every test and every mission asserts against — is untouched; only the material each box gets is richer. |
-| **M18d** | Foliage mesh upgrade | `world/restoration_director.gd` (`_build_growth_field()`/`_build_legacy_field()`: replace the flat `PrismMesh` with a small hand-built bent-blade `ArrayMesh`, still procedural, still one draw call via `MultiMesh`) | `MultiMesh.instance_count`, the per-cell transform math, and the `restoration_feedback_changed`/`restoration_legacy_changed` signals are untouched — this only changes what mesh each instance is. |
+| **M18b** | Procedural sky + purity-reactive lighting | `main.gd` (`Environment.background_mode` from flat `BG_COLOR` to `ProceduralSkyMaterial`, driven by the same purity value that already drives fog) | No new signals — reads the same `zone_purity`-derived values `main.gd` already computes for fog/ambient color. **Done** (PR #14, merged) — implemented by Codex, code-reviewed, CI-green on all 3 platforms. |
+| **M18c** | Richer procedural materials on arena structures | `world/chapter_arena.gd`'s `_add_structure()` (add a runtime `FastNoiseLite`-driven normal/roughness detail pass to the existing `StandardMaterial3D`) | `ChapterArena.recipe_for()` — the actual geometry layout data every test and every mission asserts against — is untouched; only the material each box gets is richer. **Done** (PR #16, merged) — implemented by Codex; uses `NoiseTexture2D.as_normal_map` for a real generated normal map rather than the cheaper fake-normal-from-grayscale approach originally scoped, a correct improvement on the original ask. |
+| **M18d** | Foliage mesh upgrade | `world/restoration_director.gd` (`_build_growth_field()`/`_build_legacy_field()`: replace the flat `PrismMesh` with a small hand-built bent-blade `ArrayMesh`, still procedural, still one draw call via `MultiMesh`) | `MultiMesh.instance_count`, the per-cell transform math, and the `restoration_feedback_changed`/`restoration_legacy_changed` signals are untouched — this only changes what mesh each instance is. **Done** (PR #15, merged) — implemented by Codex; correctly used `ArrayMesh.surface_set_material()` where the original scope's draft code had incorrectly suggested `PrimitiveMesh`-only API. |
 
 **Sequencing:** M18a first — it's the one item that's arguably a Phase-1 spec gap, not new scope, and
 everything downstream (shaders reacting to purity) benefits from the mask texture existing. M18b/M18c/M18d
-after, independently orderable.
+after, independently orderable — confirmed independently orderable in practice: all three touched different
+files (`main.gd`, `world/chapter_arena.gd`, `world/restoration_director.gd`), were built and reviewed as
+three separate single-file PRs with zero merge conflicts between them, and all passed CI on all three
+platforms before merge.
 
 **Testing gap, stated plainly:** the project's `renderer/rendering_method` is `gl_compatibility` and CI runs
 `--headless`, which does not exercise the GPU pipeline — a shader with a syntax error would not be caught
@@ -192,6 +195,32 @@ M18b/M18c/M18d are unblocked.
   values through `global_shader_parameter_add()`'s default-value argument and the `set()` calls when a real
   GPU renderer is attached is still an open question the manual play check needs to answer — two rounds of
   CI failures on the readback side are a reason for more caution here, not less.
+
+## M18-art / M18-audio — sourcing decided, scoped, not yet built
+
+**Sourcing decision:** CC0 asset packs, specifically [Kenney.nl](https://kenney.nl) — consistently CC0
+across every pack checked, widely used in Godot projects, and low-poly enough to not clash with this
+game's existing procedural-block aesthetic. Confirmed via web search rather than assumed:
+
+- Art: [Nature Kit](https://kenney.nl/assets/nature-kit) (330 assets), [Foliage Pack](https://kenney.nl/assets/foliage-pack) (100), [Castle Kit](https://kenney.nl/assets/castle-kit) (75), [Fantasy Town Kit](https://kenney.nl/assets/fantasy-town-kit) (160), [Graveyard Kit](https://kenney.nl/assets/graveyard-kit) (90).
+- Audio: [Impact Sounds](https://kenney.nl/assets/impact-sounds) (130), [RPG Audio](https://kenney.nl/assets/rpg-audio) (50), [UI Audio](https://kenney.nl/assets/ui-audio) (50), [Interface Sounds](https://kenney.nl/assets/interface-sounds) (100), [Sci-fi Sounds](https://kenney.nl/assets/sci-fi-sounds) (70).
+
+**Sub-milestones**, ordered safest/highest-value first (full detail handed to Codex separately, not
+duplicated here — see the sub-milestone summary below for what's load-bearing):
+
+| # | Item | Why it's the safe one to start with | Status |
+|---|---|---|---|
+| **M18-art-1** | Foliage models in `RestorationDirector` | `MultiMesh` already takes one shared mesh for hundreds of instances — swapping the mesh source for an imported model is close to a one-value change, same shape as M18d | Scoped, not started |
+| **M18-audio-1** | Cue SFX in `AudioDirector` | `play_cue(kind)`'s `match` dispatch is a clean seam; real fix is additive (a pooled `AudioStreamPlayer` set for one-shots) alongside the existing ambient generator, not a rewrite of it | Scoped, not started |
+| **M18-audio-2** | Ambient bed replacement | Not concretely scoped — needs real listening/judgment to match specific CC0 loops against the existing 4-layer corrupt/pure/water/bird crossfade design, couldn't responsibly pin exact files from search alone | Flagged for later, not scoped |
+| **M18-art-2** | Arena structure models in `ChapterArena` | `recipe_for()`'s position/size data is test-asserted and doesn't map 1:1 onto fixed-proportion real models the way a `BoxMesh` does; needs a "closest-fit by size bucket" design decision first | Flagged for later, not scoped |
+
+**Process requirements carried over from M18-engine, still binding:** no new signals should be needed for
+any of this (pure consumers of state already published); confirm Godot's actual GLTF import behavior
+empirically rather than assume it (this session's track record is specifically that unverified Godot API
+assumptions have twice turned out wrong); the manual play check is required per sub-milestone, headless CI
+cannot catch a wrong-scale or missing-texture asset any more than it could catch a broken shader; one PR
+per sub-milestone.
 
 ## Test suite changes
 
