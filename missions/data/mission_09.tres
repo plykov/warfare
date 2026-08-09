@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"THE_UNQUENCHED_WATCH"
+corruption_pattern = "SIEGE"
+corruption_seed = 909
+intercessor_cue_times = PackedFloat32Array(4, 22, 55, 95)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "DECLARE", "PRAY")
+intercessor_cue_arguments = PackedStringArray("", "", "", "")
+intercessor_cue_durations = PackedFloat32Array(0, 9, 0, 9)
+intercessor_cue_lines = PackedStringArray("The commission is fulfilled; the watch is not. He who keeps you will not slumber.", "I will not close my eyes while the siege presses. Stand.", "The word is given for what the long night requires.", "Still I watch. Still I pray. The tide has not moved me.")
+chapter = 9
+title = "The Unquenched Watch"
+briefing = "A post-commission trial. The siege that broke at the Gate re-forms nightly. Hold the Thin Place through wave after wave and let no ground slip back while you watch."
+scripture_reference = "Psalm 121:3–4"
+objective_ids = PackedStringArray("SURVIVE_WAVES", "RESTORE_THIN_PLACE")
+target_purity = 0.55
+fail_corruption = 0.9
+restore_integrity = 88.0
+starting_thin_integrity = 40.0
+survive_seconds = 130.0
+time_limit = 210.0
+starting_demons = 12
+enemy_budget = 24
+spawn_interval = 2.1
+fallen_trigger = 0.3
+synthetic_trigger = 0.4
+corruption_bias = 0.14
+enemy_power = 1.3
+boss_kind = &"PRINCE_OF_THE_LONG_NIGHT"
+boss_name = "THE PRINCE OF THE LONG NIGHT"
+boss_trigger_seconds = 60.0
+boss_power = 1.3
+garden_color = Color(0.05, 0.16, 0.14, 1)
+fog_color = Color(0.05, 0.06, 0.12, 1)
+accent_color = Color(0.4, 0.72, 1, 1)

@@ -32,7 +32,7 @@ func _run() -> void:
 		push_error("Campaign balance model is not responsive enough to player competence")
 		get_tree().quit(1)
 		return
-	print("GARDEN RECLAIMED BALANCE SIM: 8 commissions x 3 profiles passed")
+	print("GARDEN RECLAIMED BALANCE SIM: %d commissions x 3 profiles passed" % GameState.MISSION_PATHS.size())
 	AudioDirector.shutdown()
 	await get_tree().process_frame
 	get_tree().quit(0)

@@ -22,8 +22,9 @@ func _process(delta: float) -> void:
 	var mission := GameState.current_mission()
 	if mission == null:
 		return
-	var next_wave: int = 1 + floori(GameState.elapsed / WAVE_SECONDS)
-	intensity = clampf(0.2 + GameState.elapsed / maxf(mission.time_limit if mission.time_limit > 0.0 else 150.0, 1.0) + (1.0 - _purity) * 0.35, 0.0, 1.0)
+	var difficulty_mult: float = SettingsState.difficulty_multiplier() * GameState.ng_plus_multiplier()
+	var next_wave: int = 1 + floori(GameState.elapsed / (WAVE_SECONDS / difficulty_mult))
+	intensity = clampf((0.2 + GameState.elapsed / maxf(mission.time_limit if mission.time_limit > 0.0 else 150.0, 1.0) + (1.0 - _purity) * 0.35) * difficulty_mult, 0.0, 1.0)
 	if next_wave != current_wave:
 		current_wave = next_wave
 		if current_wave > 1:

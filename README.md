@@ -4,6 +4,15 @@ A playable Godot 4.4 campaign slice of a Quake-style territorial FPS where death
 
 You are **ARIEL**, a Seraph-class servant-warrior. Incoming damage drains Glory instead of health. At zero Glory ARIEL becomes **Veiled**: slower, dimmed, and unable to purify the garden. Corruption keeps spreading, and the mission fails only if it reclaims the Thin Place at the garden's heart.
 
+## Phase 2 (in progress) — see `PHASE2_SCOPE.md`
+
+- Difficulty select (Novice/Skilled/Expert) now drives corruption spread rate and territorial pressure, exposing the same profiles `tests/balance_sim.gd` already balances.
+- Movement, prayer, and authority keys are rebindable from the pause menu and persist alongside existing accessibility settings.
+- Four post-campaign challenge trials (Commissions 09–12) extend the campaign past The Seventh Stands, all reusing the six locked objective primitives and the Sevenfold Ascent arena.
+- New Game+ unlocks once every commission (core campaign + challenge trials) has been cleared once; each cycle raises corruption spread, territorial pressure, and the anchor-fail threshold.
+- Linux and macOS export presets and CI legs join the existing Windows pipeline.
+- CI runs 39 deterministic tests.
+
 ## v0.7.0 — The Full Commission
 
 - Missions 02–08 now have an explicit data-only completion contract covering every objective primitive, authored briefing, scripture reference, palette, corruption layout, and voice timeline.
@@ -65,7 +74,7 @@ Open `project.godot` in Godot 4.4.1 and run the project, or download the Windows
 - `F` reveals tactical state; `Esc` pauses and opens accessibility settings
 - `X` invokes Sevenfold Judgment at the final rank; backtick opens the field console
 
-The campaign includes eight data-driven commissions using six locked objective primitives: Purify Zone, Restore Thin Place, Bind Target, Survive Waves, Escort Host, and Break Idol. Each chapter changes ARIEL's manifested rank, objectives, enemy mix, pressure, palette, landmark, and scripture framing.
+The core campaign is eight data-driven commissions using six locked objective primitives: Purify Zone, Restore Thin Place, Bind Target, Survive Waves, Escort Host, and Break Idol. Each chapter changes ARIEL's manifested rank, objectives, enemy mix, pressure, palette, landmark, and scripture framing. Four post-campaign challenge trials (Commissions 09–12) extend the run past The Seventh Stands, remixing the same six primitives at higher pressure; clearing all twelve unlocks New Game+.
 
 Progress and settings are saved automatically. Completed commissions unlock the next chapter and preserve that commission's exact restored ground and enacted laws. Existing v0.1 and v0.2 progress migrates automatically to save schema v3.
 
@@ -80,18 +89,34 @@ Progress and settings are saved automatically. Completed commissions unlock the 
 7. War in Heaven — fight mirror and idol together.
 8. The Seventh Stands — hold all six objective verbs and defeat the Accuser at the Gate.
 
-## Windows build
+### Post-campaign challenge trials
 
-Install Godot 4.4.1 and its matching export templates, then create a release build from PowerShell:
+9. The Unquenched Watch — hold the Thin Place through wave after wave with no delay to hide behind.
+10. The Binding Trial — a Fallen mirror and a fabricated idol contest the same ground at once.
+11. The Long Siege — two fronts converge on the anchor and do not relent.
+12. Every Word Fulfilled — the capstone: every objective verb, together, at full weight.
+
+## Windows / Linux / macOS builds
+
+Install Godot 4.4.1 and its matching export templates, then create a release build:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build_windows.ps1 -Godot "C:\path\to\godot.exe"
 ```
 
-The executable is written to `build/Garden-Reclaimed.exe`. Every pull request also produces a `Garden-Reclaimed-Windows` artifact after the exported executable passes its smoke tests.
+```bash
+./scripts/build_export.sh "Linux Desktop" build/Garden-Reclaimed.x86_64 godot
+./scripts/build_export.sh "macOS" build/Garden-Reclaimed.zip godot
+```
+
+The Windows executable is written to `build/Garden-Reclaimed.exe`; Linux to `build/Garden-Reclaimed.x86_64`; macOS to `build/Garden-Reclaimed.zip`. Every pull request produces `Garden-Reclaimed-Windows`, `Garden-Reclaimed-Linux`, and `Garden-Reclaimed-macOS` artifacts, each only after its exported build passes its own smoke tests.
 
 ## Verification
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/verify.ps1 -Godot "C:\path\to\godot.exe"
+```
+
+```bash
+./scripts/verify.sh godot
 ```

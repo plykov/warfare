@@ -24,6 +24,7 @@ var speed_label: Label
 var veil_overlay: ColorRect
 var mission_select_label: Label
 var begin_button: Button
+var new_game_plus_button: Button
 var objective_title: Label
 var objectives_label: Label
 var objective_panel: PanelContainer
@@ -44,6 +45,8 @@ var law_label: Label
 var _message_time: float = 0.0
 var _hit_time: float = 0.0
 var _subtitles_enabled: bool = true
+var _rebind_pending_action: StringName = &""
+var _keybind_buttons: Dictionary = {}
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -53,6 +56,16 @@ func _ready() -> void:
 	_build_pause_overlay()
 	_build_debug_console()
 	_connect_signals()
+
+func _input(event: InputEvent) -> void:
+	if _rebind_pending_action == &"":
+		return
+	if event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo:
+		var action: StringName = _rebind_pending_action
+		_rebind_pending_action = &""
+		SettingsState.rebind_action(action, (event as InputEventKey).physical_keycode)
+		_refresh_keybind_labels()
+		get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
 	_message_time = maxf(0.0, _message_time - delta)
@@ -146,6 +159,17 @@ func _build_title() -> void:
 	accessibility.custom_minimum_size = Vector2(330, 44)
 	accessibility.pressed.connect(func() -> void: pause_overlay.visible = true)
 	panel.add_child(accessibility)
+	## M15 — New Game+. Hidden until every mission (core + M16 trials) has
+	## been cleared once; see GameState.ng_plus_available().
+	new_game_plus_button = Button.new()
+	new_game_plus_button.text = "BEGIN NEW GAME+"
+	new_game_plus_button.custom_minimum_size = Vector2(330, 44)
+	new_game_plus_button.visible = false
+	new_game_plus_button.pressed.connect(func() -> void:
+		if GameState.begin_new_game_plus():
+			_post_message("NEW GAME+ %d // EVERY GROUND ASKS AGAIN, HARDER" % GameState.ng_plus_cycle, &"danger")
+	)
+	panel.add_child(new_game_plus_button)
 	var controls := _label("WASD + MOUSE  •  SPACE ASCEND  •  SHIFT DASH\nQ PRAY  •  E DECLARE  •  R LEGISLATE  •  1–0 [ ] ARMAMENTS", 15, Color(0.72, 0.72, 0.67))
 	panel.add_child(controls)
 
@@ -158,7 +182,7 @@ func _build_title() -> void:
 	dossier_stack.add_theme_constant_override("separation", 10)
 	dossier.add_child(dossier_stack)
 	dossier_stack.add_child(_label("RESTORATION LEDGER", 20, GOLD))
-	restoration_label = _label("GARDENS HELD 0 / 8", 17, PALE)
+	restoration_label = _label("GARDENS HELD 0 / 12", 17, PALE)
 	dossier_stack.add_child(restoration_label)
 	mission_record_label = _label("NO PRIOR COMMISSION RECORD", 14, Color(0.76, 0.78, 0.74))
 	mission_record_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -332,9 +356,13 @@ func _build_pause_overlay() -> void:
 	panel.size = Vector2(600, 716)
 	panel.add_theme_stylebox_override("panel", _box(INK, GOLD, 2))
 	pause_overlay.add_child(panel)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	panel.add_child(scroll)
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 10)
-	panel.add_child(stack)
+	stack.custom_minimum_size = Vector2(580, 0)
+	scroll.add_child(stack)
 	var heading := _label("COMMISSION SUSPENDED", 36, GOLD)
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(heading)
@@ -348,9 +376,11 @@ func _build_pause_overlay() -> void:
 	_add_toggle_setting(stack, "HIGH-CONTRAST CORRUPTION", &"high_contrast")
 	_add_toggle_setting(stack, "REDUCED FLASH", &"reduced_flash")
 	_add_toggle_setting(stack, "SUBTITLES / FIELD MESSAGES", &"subtitles")
+	_add_difficulty_setting(stack)
 	var controls := _label("WASD MOVE  |  MOUSE AIM / FIRE  |  SPACE ASCEND  |  SHIFT DASH\nQ PRAY  |  E DECLARE  |  R LEGISLATE  |  F SURVEY\n1-0, [ and ] SELECT ALL TWELVE MANIFESTATIONS", 14, Color(0.76, 0.78, 0.73))
 	controls.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	stack.add_child(controls)
+	_build_keybind_rows(stack)
 	var resume := Button.new()
 	resume.text = "RETURN"
 	resume.custom_minimum_size = Vector2(0, 50)
@@ -384,6 +414,61 @@ func _add_toggle_setting(parent: VBoxContainer, title: String, key: StringName) 
 	toggle.button_pressed = bool(SettingsState.get_value(key))
 	toggle.toggled.connect(func(value: bool) -> void: EventBus.setting_update_requested.emit(key, value))
 	parent.add_child(toggle)
+
+## M13 — difficulty select. NOVICE/SKILLED/EXPERT drive corruption spread
+## rate and encounter pressure via SettingsState.difficulty_multiplier();
+## see corruption_director.gd and encounter_director.gd.
+func _add_difficulty_setting(parent: VBoxContainer) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	parent.add_child(row)
+	var label := _label("DIFFICULTY", 15, PALE)
+	label.custom_minimum_size = Vector2(250, 36)
+	row.add_child(label)
+	var option := OptionButton.new()
+	option.custom_minimum_size = Vector2(280, 36)
+	var current: StringName = StringName(SettingsState.get_value(&"difficulty"))
+	for i: int in range(SettingsState.DIFFICULTY_ORDER.size()):
+		var tier: StringName = SettingsState.DIFFICULTY_ORDER[i]
+		option.add_item(String(tier).to_upper(), i)
+		if tier == current:
+			option.selected = i
+	option.item_selected.connect(func(index: int) -> void:
+		EventBus.setting_update_requested.emit(&"difficulty", SettingsState.DIFFICULTY_ORDER[index])
+	)
+	row.add_child(option)
+
+## M14 — key rebinding. Clicking a row's button arms _rebind_pending_action;
+## the next physical key press in _input() commits the new binding.
+func _build_keybind_rows(parent: VBoxContainer) -> void:
+	parent.add_child(_label("CONTROLS // CLICK A KEY TO REBIND", 15, GOLD))
+	for action: StringName in SettingsState.REBINDABLE_ACTIONS:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		parent.add_child(row)
+		var label := _label(String(action).to_upper().replace("_", " "), 14, PALE)
+		label.custom_minimum_size = Vector2(250, 32)
+		row.add_child(label)
+		var key_button := Button.new()
+		key_button.custom_minimum_size = Vector2(280, 32)
+		key_button.text = SettingsState.key_label_for_action(action)
+		key_button.pressed.connect(func() -> void:
+			_rebind_pending_action = action
+			key_button.text = "PRESS A KEY…"
+		)
+		_keybind_buttons[action] = key_button
+		row.add_child(key_button)
+	var reset := Button.new()
+	reset.text = "RESET CONTROLS TO DEFAULT"
+	reset.pressed.connect(func() -> void:
+		SettingsState.reset_key_binds()
+		_refresh_keybind_labels()
+	)
+	parent.add_child(reset)
+
+func _refresh_keybind_labels() -> void:
+	for action: Variant in _keybind_buttons.keys():
+		(_keybind_buttons[action] as Button).text = SettingsState.key_label_for_action(StringName(action))
 
 func _build_debug_console() -> void:
 	debug_overlay = PanelContainer.new()
@@ -472,7 +557,9 @@ func _on_campaign_changed(selected: int, unlocked: int, completed: Dictionary) -
 	var cleared: String = "  ✓ HELD" if completed.has(str(selected)) else ""
 	mission_select_label.text = "%02d / %02d  %s%s" % [selected + 1, unlocked, mission.title.to_upper(), cleared]
 	begin_button.text = "BEGIN COMMISSION %02d" % (selected + 1)
-	restoration_label.text = "GARDENS HELD %d / %d  //  %d%% RESTORED" % [completed.size(), GameState.MISSION_PATHS.size(), roundi(float(completed.size()) / GameState.MISSION_PATHS.size() * 100.0)]
+	var ng_plus_tag: String = "  //  NEW GAME+%d" % GameState.ng_plus_cycle if GameState.ng_plus_cycle > 0 else ""
+	restoration_label.text = "GARDENS HELD %d / %d  //  %d%% RESTORED%s" % [completed.size(), GameState.MISSION_PATHS.size(), roundi(float(completed.size()) / GameState.MISSION_PATHS.size() * 100.0), ng_plus_tag]
+	new_game_plus_button.visible = GameState.ng_plus_available()
 	_on_records_changed(GameState.mission_records)
 
 func _on_records_changed(records: Dictionary) -> void:

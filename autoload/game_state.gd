@@ -12,8 +12,25 @@ const MISSION_PATHS: PackedStringArray = [
 	"res://missions/data/mission_05.tres",
 	"res://missions/data/mission_06.tres",
 	"res://missions/data/mission_07.tres",
-	"res://missions/data/mission_08.tres"
+	"res://missions/data/mission_08.tres",
+	"res://missions/data/mission_09.tres",
+	"res://missions/data/mission_10.tres",
+	"res://missions/data/mission_11.tres",
+	"res://missions/data/mission_12.tres"
 ]
+## M16 — missions after this index are post-campaign challenge trials, not
+## the locked 8-commission arc. They reuse the Sevenfold Ascent arena
+## (ChapterArena clamps chapter index to 7) and the final rank (RankSystem
+## clamps the same way) by design — see PHASE2_SCOPE.md.
+const CORE_CAMPAIGN_LENGTH: int = 8
+
+## M15 — New Game+. Available once every mission (core campaign + the M16
+## challenge trials) has been completed at least once. Each cycle stacks a
+## multiplier consumed by CorruptionDirector, EncounterDirector, and
+## MissionDirector — no new mission fields, the same knob M13's difficulty
+## setting already reads at those sites.
+const NG_PLUS_STEP: float = 0.15
+const NG_PLUS_MAX_MULTIPLIER: float = 1.6
 
 var phase: Phase = Phase.TITLE
 var elapsed: float = 0.0
@@ -23,6 +40,7 @@ var completed: Dictionary = {}
 var mission_records: Dictionary = {}
 var garden_states: Dictionary = {}
 var campaign_pride: float = 0.0
+var ng_plus_cycle: int = 0
 var persistence_enabled: bool = true
 var paused: bool = false
 
@@ -150,6 +168,23 @@ func select_relative(delta: int) -> void:
 func completed_count() -> int:
 	return completed.size()
 
+func ng_plus_multiplier() -> float:
+	return minf(NG_PLUS_MAX_MULTIPLIER, 1.0 + float(ng_plus_cycle) * NG_PLUS_STEP)
+
+func ng_plus_available() -> bool:
+	return phase == Phase.TITLE and completed_count() >= MISSION_PATHS.size()
+
+func begin_new_game_plus() -> bool:
+	if not ng_plus_available():
+		return false
+	ng_plus_cycle += 1
+	selected_mission = 0
+	unlocked_count = 1
+	completed.clear()
+	_save_progress()
+	_emit_campaign()
+	return true
+
 func _on_mission_outcome_requested(success: bool, reason: String) -> void:
 	if success:
 		_capture_garden_state()
@@ -221,7 +256,8 @@ func _save_progress() -> void:
 		"completed": completed.keys(),
 		"mission_records": mission_records,
 		"garden_states": garden_states,
-		"campaign_pride": campaign_pride
+		"campaign_pride": campaign_pride,
+		"ng_plus_cycle": ng_plus_cycle
 	}))
 
 func _load_progress() -> void:
@@ -256,6 +292,7 @@ func _apply_progress_data(data: Dictionary) -> void:
 			if stored_state is Dictionary:
 				garden_states[str(key)] = (stored_state as Dictionary).duplicate(true)
 	campaign_pride = clampf(float(data.get("campaign_pride", 0.0)), 0.0, 100.0)
+	ng_plus_cycle = maxi(0, int(data.get("ng_plus_cycle", 0)))
 	# Version 1 saves only had a completion list. Seed useful records without
 	# invalidating anyone's existing campaign.
 	if int(data.get("save_version", 1)) < SAVE_VERSION:
@@ -273,6 +310,7 @@ func _reset_for_test() -> void:
 	mission_records.clear()
 	garden_states.clear()
 	campaign_pride = 0.0
+	ng_plus_cycle = 0
 	paused = false
 	get_tree().paused = false
 	_emit_campaign()
