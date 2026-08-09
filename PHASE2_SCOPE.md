@@ -129,7 +129,7 @@ gradeable without a human sourcing decision first:
 
 | # | Item | Touches | Contract preserved |
 |---|---|---|---|
-| **M18a** | Shared corruption-mask shader | New `world/shaders/corruption.gdshader`; `autoload/corruption_director.gd` (publish an `R8` texture from `cells` instead of only holding the array); `main.gd` (ground tiles read the shader instead of getting per-tile `albedo_color` writes) | `CorruptionDirector.sample()`/`purify()`/`corrupt()` and every signal contract stay untouched — this is a rendering-layer swap under data that doesn't change. The `high_contrast` accessibility toggle becomes a shader uniform instead of a hardcoded branch, same visible behavior. **Done.** |
+| **M18a** | Shared corruption-mask shader | New `world/shaders/corruption.gdshader`; `autoload/corruption_director.gd` (publish an `R8` texture from `cells` instead of only holding the array); `main.gd` (ground tiles read the shader instead of getting per-tile `albedo_color` writes) | `CorruptionDirector.sample()`/`purify()`/`corrupt()` and every signal contract stay untouched — this is a rendering-layer swap under data that doesn't change. The `high_contrast` accessibility toggle becomes a shader uniform instead of a hardcoded branch, same visible behavior. **Done — CI-green and visually verified, see below.** |
 | **M18b** | Procedural sky + purity-reactive lighting | `main.gd` (`Environment.background_mode` from flat `BG_COLOR` to `ProceduralSkyMaterial`, driven by the same purity value that already drives fog) | No new signals — reads the same `zone_purity`-derived values `main.gd` already computes for fog/ambient color. |
 | **M18c** | Richer procedural materials on arena structures | `world/chapter_arena.gd`'s `_add_structure()` (add a runtime `FastNoiseLite`-driven normal/roughness detail pass to the existing `StandardMaterial3D`) | `ChapterArena.recipe_for()` — the actual geometry layout data every test and every mission asserts against — is untouched; only the material each box gets is richer. |
 | **M18d** | Foliage mesh upgrade | `world/restoration_director.gd` (`_build_growth_field()`/`_build_legacy_field()`: replace the flat `PrismMesh` with a small hand-built bent-blade `ArrayMesh`, still procedural, still one draw call via `MultiMesh`) | `MultiMesh.instance_count`, the per-cell transform math, and the `restoration_feedback_changed`/`restoration_legacy_changed` signals are untouched — this only changes what mesh each instance is. |
@@ -143,6 +143,15 @@ after, independently orderable.
 by `test_runner.tscn`, `smoke_game.tscn`, or `campaign_smoke.tscn`. `CLAUDE.md`'s "launch `main.tscn` for a
 play check" step is not optional for this milestone the way it's a formality for pure-logic changes; it's
 the only check that actually catches a broken shader.
+
+**Gap closed, `main` commit `d2f7ade`:** manual play check performed with normal (non-headless) OpenGL
+rendering on real hardware. Commission 01's ground rendered as lit terrain with a real corrupt→pure
+gradient across the tile grid, not flat/unshaded/black/white; live purify and corrupt both updated visible
+tile color within one field tick; the `HIGH-CONTRAST CORRUPTION` accessibility toggle switched the corrupt
+color between its two documented values on screen; switching to Commission 10 correctly swapped the
+pure-ground color to that mission's authored `garden_color`. No shader compile or renderer errors. This is
+the confirmation the "testing gap" above was waiting on — M18a is fully verified, not just CI-green, and
+M18b/M18c/M18d are unblocked.
 
 ### M18a implementation notes
 
@@ -199,11 +208,23 @@ match all current pass markers.
 **This sandbox has no Godot binary**, so nothing here was run locally through
 `godot --headless --path . res://tests/test_runner.tscn` before being pushed — everything was reviewed by
 hand first (including a standalone Python re-implementation of `balance_sim.gd`'s exact formula to validate
-the four new missions' purity targets). M13–M17 have since actually run in CI (GitHub Actions, real Godot
-4.4.1 binaries on Windows/Linux/macOS runners) and are green after two reactive fixes: the macOS export
-needed `rendering/textures/vram_compression/import_etc2_astc=true` at the project level, not just the
-per-preset export option, and `tests/campaign_smoke.gd` had a latent timing flake (`EncounterDirector`'s
-boss-trigger tick paced by real per-frame delta, which varies between the debug editor run and the exported
-release binary) that surfaced on the Windows exported-build smoke check. M18a is pushed but its CI result
-isn't confirmed as of this writing — watch for the same class of issue (something that only breaks under
-real engine execution, not code review) before treating it as done.
+the four new missions' purity targets). M13–M18a have since actually run — in CI (GitHub Actions, real
+Godot 4.4.1 binaries on Windows/Linux/macOS runners) and, for M18a specifically, in a real non-headless
+editor session with GPU rendering. Green throughout, but only after four reactive fixes, all of the same
+shape — something that only breaks under real engine execution, never visible from code review alone:
+
+1. macOS export needed `rendering/textures/vram_compression/import_etc2_astc=true` at the project level,
+   not just the per-preset export option.
+2. `tests/campaign_smoke.gd`'s boss-spawn timing depended on `EncounterDirector`'s tick cooldown, paced by
+   real per-frame delta, which varies between the debug editor run and the exported release binary.
+3. `RenderingServer.global_shader_parameter_get()` returns `Nil` for every parameter type under
+   `--headless`, and `ImageTexture.get_image()` has the same readback problem — both discovered by CI, not
+   guessed.
+4. Separately from (2), `TerritorialPrince.phase` only updates inside its own `_physics_process()`, which
+   runs on the engine's independent physics schedule — decoupled from `campaign_smoke.gd`'s idle-frame test
+   loop, and not guaranteed to run again before the loop ends.
+
+M18a's manual play check (see above) is the fifth and final confirmation: the shader was reviewed by hand,
+passed headless CI, and has now actually been watched rendering on real hardware. Treat this as the honest
+bar for "done" on anything shader/rendering-adjacent in this repo going forward — headless-green alone was
+demonstrably not sufficient here, four times over.
