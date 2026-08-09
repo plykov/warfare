@@ -14,6 +14,13 @@ func _ready() -> void:
 	for frame: int in range(360):
 		if frame == 5:
 			GameState.elapsed = 49.0
+			# EncounterDirector's boss-trigger check only runs on its own 0.5s
+			# tick, which is paced by real per-frame delta and can therefore
+			# take a very different number of frames to fire depending on host
+			# speed (editor debug run vs. exported release binary). Force it
+			# to fire on the very next frame so the 220-frame damage window
+			# below is not a timing race.
+			EncounterDirector._tick = 0.0
 		if frame == 30:
 			EventBus.purification_requested.emit(Vector3.ZERO, 70.0, 0.72)
 		if frame == 120:
