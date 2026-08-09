@@ -29,10 +29,18 @@ Progress is saved automatically. Completed commissions unlock the next chapter a
 7. War in Heaven — fight mirror and idol together.
 8. The Seventh Stands — hold all six objective verbs in one commission.
 
+## Windows build
+
+Install Godot 4.4.1 and its matching export templates, then create a release build from PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build_windows.ps1 -Godot "C:\path\to\godot.exe"
+```
+
+The executable is written to `build/Garden-Reclaimed.exe`. Every pull request also produces a `Garden-Reclaimed-Windows` artifact after the exported executable passes its smoke test.
+
 ## Verification
 
 ```powershell
-godot --headless --path . res://tests/test_runner.tscn
-godot --headless --path . res://tests/smoke_game.tscn
-godot --headless --path . res://tests/campaign_smoke.tscn
+powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/verify.ps1 -Godot "C:\path\to\godot.exe"
 ```
