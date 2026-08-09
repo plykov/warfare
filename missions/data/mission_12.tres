@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"EVERY_WORD_FULFILLED"
+corruption_pattern = "ALTAR_RING"
+corruption_seed = 1212
+intercessor_cue_times = PackedFloat32Array(4, 32, 74, 130)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "DECLARE", "LEGISLATE")
+intercessor_cue_arguments = PackedStringArray("", "", "", "GROUND_HOLDS")
+intercessor_cue_durations = PackedFloat32Array(0, 11, 0, 0)
+intercessor_cue_lines = PackedStringArray("Every commission you have carried meets this ground at once. None of it was ever your own strength.", "I have prayed every mission with you. I will not stop for the last.", "The final word for this trial is given. Do not presume beyond it.", "What you reclaim here will not be asked to be reclaimed again.")
+chapter = 12
+title = "Every Word Fulfilled"
+briefing = "The capstone trial. Every verb the commission ever asked of you is asked again, together, at full weight: reclaim, restore, receive, rebuke, bind, and break. Nothing here is new. All of it is harder."
+scripture_reference = "Joshua 21:45"
+objective_ids = PackedStringArray("PURIFY_ZONE", "RESTORE_THIN_PLACE", "BIND_TARGET", "SURVIVE_WAVES", "ESCORT_HOST", "BREAK_IDOL")
+target_purity = 0.38
+fail_corruption = 0.82
+restore_integrity = 95.0
+starting_thin_integrity = 20.0
+time_limit = 260.0
+starting_demons = 16
+enemy_budget = 30
+spawn_interval = 1.75
+fallen_trigger = 0.24
+synthetic_trigger = 0.28
+corruption_bias = 0.2
+enemy_power = 1.5
+boss_kind = &"THE_FINAL_ACCUSER"
+boss_name = "THE ACCUSER, UNMASKED"
+boss_trigger_seconds = 50.0
+boss_power = 1.5
+garden_color = Color(0.12, 0.2, 0.08, 1)
+fog_color = Color(0.11, 0.03, 0.03, 1)
+accent_color = Color(1, 0.7, 0.15, 1)

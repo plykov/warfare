@@ -30,7 +30,8 @@ func _process(delta: float) -> void:
 	if current_mission.time_limit > 0.0 and GameState.elapsed >= current_mission.time_limit:
 		_end(false, "THE COMMISSION WINDOW CLOSED")
 		return
-	if float(_context.get("anchor", 0.0)) >= current_mission.fail_corruption:
+	var effective_fail_corruption: float = clampf(current_mission.fail_corruption / GameState.ng_plus_multiplier(), 0.55, 1.0)
+	if float(_context.get("anchor", 0.0)) >= effective_fail_corruption:
 		_end(false, "THE THIN PLACE WAS RECLAIMED")
 		return
 

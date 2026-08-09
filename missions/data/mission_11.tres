@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"THE_LONG_SIEGE"
+corruption_pattern = "CROSSFIRE"
+corruption_seed = 1111
+intercessor_cue_times = PackedFloat32Array(4, 26, 62, 100)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "DECLARE", "PRAY")
+intercessor_cue_arguments = PackedStringArray("", "", "", "")
+intercessor_cue_durations = PackedFloat32Array(0, 10, 0, 12)
+intercessor_cue_lines = PackedStringArray("This siege has no delay left to grant it cover. It simply does not stop.", "I am spent, but not silent. Hold with me.", "The word is given: let the Host answer at need, not at your asking alone.", "Still praying. The line will not move while I stand at it.")
+chapter = 11
+title = "The Long Siege"
+briefing = "A post-commission trial. Two fronts converge on the Thin Place at once and do not relent. Hold the anchor, purify the crossfire, and let the Host answer as it comes."
+scripture_reference = "2 Kings 6:16–17"
+objective_ids = PackedStringArray("SURVIVE_WAVES", "ESCORT_HOST", "PURIFY_ZONE")
+target_purity = 0.6
+fail_corruption = 0.86
+survive_seconds = 120.0
+time_limit = 230.0
+starting_demons = 13
+enemy_budget = 22
+spawn_interval = 2.0
+fallen_trigger = 0.28
+synthetic_trigger = 0.32
+corruption_bias = 0.14
+enemy_power = 1.25
+garden_color = Color(0.1, 0.14, 0.06, 1)
+fog_color = Color(0.13, 0.09, 0.05, 1)
+accent_color = Color(1, 0.55, 0.2, 1)

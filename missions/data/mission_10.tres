@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"THE_BINDING_TRIAL"
+corruption_pattern = "SHATTERED"
+corruption_seed = 1010
+intercessor_cue_times = PackedFloat32Array(4, 20, 44)
+intercessor_cue_actions = PackedStringArray("VOICE", "DECLARE", "LEGISLATE")
+intercessor_cue_arguments = PackedStringArray("", "", "NO_HIDDEN_THING")
+intercessor_cue_durations = PackedFloat32Array(0, 0, 0)
+intercessor_cue_lines = PackedStringArray("A mirror and a fabrication walk the same ground tonight. Neither answers to strength alone.", "The Lord rebuke you. Take up the chain.", "Let nothing that walks here remain concealed from you.")
+chapter = 10
+title = "The Binding Trial"
+briefing = "A post-commission trial. A Fallen mirror and a fabricated idol contest the same ground. Bind what accuses, purify what it corrupted, and break what was never alive to begin with."
+scripture_reference = "Revelation 20:1–3"
+objective_ids = PackedStringArray("BIND_TARGET", "PURIFY_ZONE", "BREAK_IDOL")
+target_purity = 0.62
+fail_corruption = 0.88
+starting_demons = 10
+enemy_budget = 22
+spawn_interval = 2.3
+fallen_trigger = 0.22
+synthetic_trigger = 0.3
+corruption_bias = 0.12
+enemy_power = 1.35
+garden_color = Color(0.14, 0.1, 0.16, 1)
+fog_color = Color(0.1, 0.05, 0.14, 1)
+accent_color = Color(0.72, 0.35, 0.95, 1)

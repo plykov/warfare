@@ -24,6 +24,7 @@ var speed_label: Label
 var veil_overlay: ColorRect
 var mission_select_label: Label
 var begin_button: Button
+var new_game_plus_button: Button
 var objective_title: Label
 var objectives_label: Label
 var objective_panel: PanelContainer
@@ -158,6 +159,17 @@ func _build_title() -> void:
 	accessibility.custom_minimum_size = Vector2(330, 44)
 	accessibility.pressed.connect(func() -> void: pause_overlay.visible = true)
 	panel.add_child(accessibility)
+	## M15 — New Game+. Hidden until every mission (core + M16 trials) has
+	## been cleared once; see GameState.ng_plus_available().
+	new_game_plus_button = Button.new()
+	new_game_plus_button.text = "BEGIN NEW GAME+"
+	new_game_plus_button.custom_minimum_size = Vector2(330, 44)
+	new_game_plus_button.visible = false
+	new_game_plus_button.pressed.connect(func() -> void:
+		if GameState.begin_new_game_plus():
+			_post_message("NEW GAME+ %d // EVERY GROUND ASKS AGAIN, HARDER" % GameState.ng_plus_cycle, &"danger")
+	)
+	panel.add_child(new_game_plus_button)
 	var controls := _label("WASD + MOUSE  •  SPACE ASCEND  •  SHIFT DASH\nQ PRAY  •  E DECLARE  •  R LEGISLATE  •  1–0 [ ] ARMAMENTS", 15, Color(0.72, 0.72, 0.67))
 	panel.add_child(controls)
 
@@ -170,7 +182,7 @@ func _build_title() -> void:
 	dossier_stack.add_theme_constant_override("separation", 10)
 	dossier.add_child(dossier_stack)
 	dossier_stack.add_child(_label("RESTORATION LEDGER", 20, GOLD))
-	restoration_label = _label("GARDENS HELD 0 / 8", 17, PALE)
+	restoration_label = _label("GARDENS HELD 0 / 12", 17, PALE)
 	dossier_stack.add_child(restoration_label)
 	mission_record_label = _label("NO PRIOR COMMISSION RECORD", 14, Color(0.76, 0.78, 0.74))
 	mission_record_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -545,7 +557,9 @@ func _on_campaign_changed(selected: int, unlocked: int, completed: Dictionary) -
 	var cleared: String = "  ✓ HELD" if completed.has(str(selected)) else ""
 	mission_select_label.text = "%02d / %02d  %s%s" % [selected + 1, unlocked, mission.title.to_upper(), cleared]
 	begin_button.text = "BEGIN COMMISSION %02d" % (selected + 1)
-	restoration_label.text = "GARDENS HELD %d / %d  //  %d%% RESTORED" % [completed.size(), GameState.MISSION_PATHS.size(), roundi(float(completed.size()) / GameState.MISSION_PATHS.size() * 100.0)]
+	var ng_plus_tag: String = "  //  NEW GAME+%d" % GameState.ng_plus_cycle if GameState.ng_plus_cycle > 0 else ""
+	restoration_label.text = "GARDENS HELD %d / %d  //  %d%% RESTORED%s" % [completed.size(), GameState.MISSION_PATHS.size(), roundi(float(completed.size()) / GameState.MISSION_PATHS.size() * 100.0), ng_plus_tag]
+	new_game_plus_button.visible = GameState.ng_plus_available()
 	_on_records_changed(GameState.mission_records)
 
 func _on_records_changed(records: Dictionary) -> void:
