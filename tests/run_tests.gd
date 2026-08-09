@@ -48,9 +48,10 @@ func _run() -> void:
 	_test_key_rebinding()
 	_test_challenge_missions()
 	_test_new_game_plus()
+	_test_corruption_shader_globals()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 39 passed")
+		print("GARDEN RECLAIMED TESTS: 40 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -227,6 +228,27 @@ func _test_new_game_plus() -> void:
 	_assert(GameState.ng_plus_cycle == 1, "Starting New Game+ must advance the cycle counter")
 	_assert(GameState.unlocked_count == 1 and GameState.completed.is_empty(), "New Game+ must reset mission unlock and completion state for the replay")
 	_assert(GameState.ng_plus_multiplier() > 1.0, "New Game+ must raise the difficulty multiplier above baseline")
+	GameState._reset_for_test()
+
+## M18a — shared corruption-mask shader. Headless mode has no GPU pipeline to
+## render with, but the RenderingServer-side global shader parameters are
+## ordinary engine state and can be asserted directly.
+func _test_corruption_shader_globals() -> void:
+	CorruptionDirector._reset_for_test()
+	var mask: Variant = RenderingServer.global_shader_parameter_get(&"corruption_mask")
+	_assert(mask is Texture2D, "CorruptionDirector must publish a shared corruption_mask texture")
+	var world_size: Variant = RenderingServer.global_shader_parameter_get(&"corruption_world_size")
+	_assert(world_size is Vector2, "corruption_world_size must be registered as a global shader parameter")
+	if world_size is Vector2:
+		var expected: Vector2 = Vector2(CorruptionDirector.GRID_WIDTH, CorruptionDirector.GRID_HEIGHT) * CorruptionDirector.CELL_SIZE
+		_assert((world_size as Vector2).is_equal_approx(expected), "corruption_world_size must reflect the grid dimensions and cell size")
+	var pure_color: Variant = RenderingServer.global_shader_parameter_get(&"corruption_pure_color")
+	_assert(pure_color is Vector3, "corruption_pure_color must be registered as a global shader parameter")
+	var mission: MissionResource = load(GameState.MISSION_PATHS[0]) as MissionResource
+	EventBus.mission_selected.emit(0, mission)
+	var updated_color: Vector3 = RenderingServer.global_shader_parameter_get(&"corruption_pure_color")
+	var expected_color: Color = mission.garden_color
+	_assert(is_equal_approx(updated_color.x, expected_color.r) and is_equal_approx(updated_color.y, expected_color.g), "Selecting a mission must publish its garden_color as the shared pure-color uniform")
 	GameState._reset_for_test()
 
 func _test_campaign_records() -> void:

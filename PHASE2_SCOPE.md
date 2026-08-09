@@ -129,7 +129,7 @@ gradeable without a human sourcing decision first:
 
 | # | Item | Touches | Contract preserved |
 |---|---|---|---|
-| **M18a** | Shared corruption-mask shader | New `world/shaders/corruption.gdshader`; `autoload/corruption_director.gd` (publish an `R8` texture from `cells` instead of only holding the array); `main.gd` (ground tiles read the shader instead of getting per-tile `albedo_color` writes) | `CorruptionDirector.sample()`/`purify()`/`corrupt()` and every signal contract stay untouched — this is a rendering-layer swap under data that doesn't change. The `high_contrast` accessibility toggle becomes a shader uniform instead of a hardcoded branch, same visible behavior. |
+| **M18a** | Shared corruption-mask shader | New `world/shaders/corruption.gdshader`; `autoload/corruption_director.gd` (publish an `R8` texture from `cells` instead of only holding the array); `main.gd` (ground tiles read the shader instead of getting per-tile `albedo_color` writes) | `CorruptionDirector.sample()`/`purify()`/`corrupt()` and every signal contract stay untouched — this is a rendering-layer swap under data that doesn't change. The `high_contrast` accessibility toggle becomes a shader uniform instead of a hardcoded branch, same visible behavior. **Done.** |
 | **M18b** | Procedural sky + purity-reactive lighting | `main.gd` (`Environment.background_mode` from flat `BG_COLOR` to `ProceduralSkyMaterial`, driven by the same purity value that already drives fog) | No new signals — reads the same `zone_purity`-derived values `main.gd` already computes for fog/ambient color. |
 | **M18c** | Richer procedural materials on arena structures | `world/chapter_arena.gd`'s `_add_structure()` (add a runtime `FastNoiseLite`-driven normal/roughness detail pass to the existing `StandardMaterial3D`) | `ChapterArena.recipe_for()` — the actual geometry layout data every test and every mission asserts against — is untouched; only the material each box gets is richer. |
 | **M18d** | Foliage mesh upgrade | `world/restoration_director.gd` (`_build_growth_field()`/`_build_legacy_field()`: replace the flat `PrismMesh` with a small hand-built bent-blade `ArrayMesh`, still procedural, still one draw call via `MultiMesh`) | `MultiMesh.instance_count`, the per-cell transform math, and the `restoration_feedback_changed`/`restoration_legacy_changed` signals are untouched — this only changes what mesh each instance is. |
@@ -142,22 +142,60 @@ after, independently orderable.
 `--headless`, which does not exercise the GPU pipeline — a shader with a syntax error would not be caught
 by `test_runner.tscn`, `smoke_game.tscn`, or `campaign_smoke.tscn`. `CLAUDE.md`'s "launch `main.tscn` for a
 play check" step is not optional for this milestone the way it's a formality for pure-logic changes; it's
-the only check that actually catches a broken shader. I'll call this out again at the top of the PR when
-M18a lands.
+the only check that actually catches a broken shader.
+
+### M18a implementation notes
+
+- `world/shaders/corruption.gdshader` computes UV from world-space X/Z against `corruption_world_origin`/
+  `corruption_world_size`, matching `CorruptionDirector.cell_to_world()`'s math — the two need to stay in
+  sync if either changes.
+- `CorruptionDirector._register_shader_globals()` registers `corruption_mask` (sampler2D),
+  `corruption_world_origin`/`corruption_world_size` (vec3/vec2), `corruption_pure_color` (vec3, set from
+  the active mission's `garden_color`), and `corruption_high_contrast` (bool, mirrors the existing
+  accessibility setting) via `RenderingServer.global_shader_parameter_add/set` at `_ready()` — done in code
+  rather than in project.godot's `[shader_globals]` section, since that section's serialization format
+  can't be verified against a real Godot binary in this environment, whereas `RenderingServer` calls are
+  ordinary GDScript that the headless test suite already exercises.
+- The `corruption_mask` texture (`R8`, `GRID_WIDTH`×`GRID_HEIGHT`) republishes every corruption tick
+  (`_emit_state()`, ~4.5 Hz) via `ImageTexture.set_image()` — same cadence the old per-tile CPU loop ran
+  at, but now it's one texture upload instead of writing `albedo_color`/`emission` on up to 475 individual
+  `StandardMaterial3D` instances every tick.
+- `main.gd`'s `_build_corruption_tiles()` now assigns **one shared `ShaderMaterial`** to every ground tile
+  (previously each tile got its own `StandardMaterial3D`); `_on_corruption_changed()` only still does
+  per-cell CPU work for the small bloom-prop `MultiMesh` scaling, which this milestone didn't touch.
+- Removed now-dead code this left behind: `main.gd`'s `_garden_color` var (only read by the coloring loop
+  that no longer exists) and its no-op `_on_settings_changed` handler (the high-contrast reaction now lives
+  in `CorruptionDirector._on_settings_changed_for_shader`).
+- **Unverified API surface, stated plainly:** `Image.create()`, `ImageTexture.create_from_image()`,
+  `ImageTexture.set_image()`, and the `RenderingServer.global_shader_parameter_*` family are all used here
+  for the first time in this codebase — there was no existing call site to confirm the exact Godot 4.4.1
+  signatures against. `smoke_game.tscn`/`campaign_smoke.tscn` instantiate `main.tscn` and would fail
+  immediately if any of these calls errored at `_ready()`, which is *some* headless coverage, but it does
+  not confirm the shader actually compiles or renders correctly — that's still only the manual play check.
+- Added `_test_corruption_shader_globals` to `tests/run_tests.gd`, asserting the registered globals exist
+  with the right types/values and that selecting a mission republishes its `garden_color`. This is the
+  most CI can verify without a GPU.
 
 ## Test suite changes
 
-`tests/run_tests.gd` went from 35 to 39 tests: `_test_difficulty_multiplier`, `_test_key_rebinding`,
-`_test_challenge_missions`, `_test_new_game_plus`. Existing tests that hardcoded the old 8-mission count
-(`_test_mission_catalog`, `_test_boss_catalog`, `_test_authored_corruption_layouts`) were updated to the
-new count of 12 (or, for `_test_campaign_content_completeness`, scoped explicitly to
-`GameState.CORE_CAMPAIGN_LENGTH` so it stays a pure historical record of the original locked 8-commission
-arc rather than silently absorbing the new content). `tests/balance_sim.gd`'s pass message is now generated
-from `MISSION_PATHS.size()` instead of a hardcoded "8", and `scripts/verify.ps1` / `scripts/smoke_windows.ps1`
-/ `scripts/verify.sh` were updated to match both new pass markers.
+`tests/run_tests.gd` went from 35 to 40 tests: `_test_difficulty_multiplier`, `_test_key_rebinding`,
+`_test_challenge_missions`, `_test_new_game_plus`, `_test_corruption_shader_globals`. Existing tests that
+hardcoded the old 8-mission count (`_test_mission_catalog`, `_test_boss_catalog`,
+`_test_authored_corruption_layouts`) were updated to the new count of 12 (or, for
+`_test_campaign_content_completeness`, scoped explicitly to `GameState.CORE_CAMPAIGN_LENGTH` so it stays a
+pure historical record of the original locked 8-commission arc rather than silently absorbing the new
+content). `tests/balance_sim.gd`'s pass message is now generated from `MISSION_PATHS.size()` instead of a
+hardcoded "8", and `scripts/verify.ps1` / `scripts/smoke_windows.ps1` / `scripts/verify.sh` were updated to
+match all current pass markers.
 
-**This sandbox has no Godot binary**, so none of this — M13 through M17 — has been run through
-`godot --headless --path . res://tests/test_runner.tscn` or the other two verification scenes `CLAUDE.md`
-requires. Everything was reviewed by hand (including a standalone Python re-implementation of
-`balance_sim.gd`'s exact formula to validate the four new missions' purity targets), but please run the full
-verification loop, and `scripts/verify.sh` / `scripts/verify.ps1`, before merging.
+**This sandbox has no Godot binary**, so nothing here was run locally through
+`godot --headless --path . res://tests/test_runner.tscn` before being pushed — everything was reviewed by
+hand first (including a standalone Python re-implementation of `balance_sim.gd`'s exact formula to validate
+the four new missions' purity targets). M13–M17 have since actually run in CI (GitHub Actions, real Godot
+4.4.1 binaries on Windows/Linux/macOS runners) and are green after two reactive fixes: the macOS export
+needed `rendering/textures/vram_compression/import_etc2_astc=true` at the project level, not just the
+per-preset export option, and `tests/campaign_smoke.gd` had a latent timing flake (`EncounterDirector`'s
+boss-trigger tick paced by real per-frame delta, which varies between the debug editor run and the exported
+release binary) that surfaced on the Windows exported-build smoke check. M18a is pushed but its CI result
+isn't confirmed as of this writing — watch for the same class of issue (something that only breaks under
+real engine execution, not code review) before treating it as done.
