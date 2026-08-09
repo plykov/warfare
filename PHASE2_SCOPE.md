@@ -166,19 +166,23 @@ the only check that actually catches a broken shader.
 - Removed now-dead code this left behind: `main.gd`'s `_garden_color` var (only read by the coloring loop
   that no longer exists) and its no-op `_on_settings_changed` handler (the high-contrast reaction now lives
   in `CorruptionDirector._on_settings_changed_for_shader`).
-- **Confirmed finding, not speculation:** CI caught that
+- **Confirmed finding, not speculation — two rounds of it.** CI caught that
   `RenderingServer.global_shader_parameter_get()` returns `Nil` under `--headless` on all three platforms
   (Linux, macOS, Windows) — for every parameter, including plain `Vector2`/`Vector3` ones, not just the
   `sampler2D`. `global_shader_parameter_add()`/`set()` never errored, so registration itself isn't the
-  problem; the readback specifically is unreliable headlessly. First `_test_corruption_shader_globals`
-  tried to assert against that readback and crashed CI (a hard-typed `var x: Vector3 = ...` assignment from
-  a `Nil` return is a runtime type error, not a soft assertion failure) — rewritten to assert against
-  `CorruptionDirector`'s own internal state (`_mask_texture`'s dimensions, and that painting a cell shows up
-  in the published pixels) instead, which doesn't depend on the RenderingServer round-trip.
-  `Image.create()`/`ImageTexture.create_from_image()`/`ImageTexture.set_image()` all worked fine headlessly.
-  Whether the shader actually receives correct values through `global_shader_parameter_add()`'s default-value
-  argument when a real GPU renderer is attached — as opposed to only through the now-unverifiable `set()`
-  calls — is still an open question the manual play check needs to answer, not a closed one.
+  problem; the readback specifically is unreliable headlessly. The first fix rerouted the test through
+  `ImageTexture.get_image()` instead — which turned out to have the *same class* of problem: dimensions
+  checked out against the image `create_from_image()` was seeded with, but pixel data written via a second
+  `set_image()` call didn't come back through `get_image()`. `tests/run_tests.gd`'s
+  `_test_corruption_shader_globals` now asserts against `CorruptionDirector._mask_image` directly — the
+  plain CPU-side `Image` it writes to via `set_pixel()`, before the texture or RenderingServer layer is
+  involved at all — which sidesteps both unreliable round-trips.
+  `Image.create()`/`ImageTexture.create_from_image()`/`ImageTexture.set_image()` and the underlying
+  `set_pixel()`/`get_pixel()` calls all work fine headlessly; it's specifically reading *back out* through
+  the texture/RenderingServer layer that doesn't. Whether the shader itself actually receives correct
+  values through `global_shader_parameter_add()`'s default-value argument and the `set()` calls when a real
+  GPU renderer is attached is still an open question the manual play check needs to answer — two rounds of
+  CI failures on the readback side are a reason for more caution here, not less.
 
 ## Test suite changes
 
