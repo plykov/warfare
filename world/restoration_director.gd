@@ -1,6 +1,11 @@
 class_name RestorationDirector
 extends Node3D
 
+const GROWTH_MODEL: PackedScene = preload("res://assets/models/foliage/nature_kit_grass.glb")
+const LEGACY_MODEL: PackedScene = preload("res://assets/models/foliage/nature_kit_flower_yellow_b.glb")
+const GROWTH_MODEL_SCALE := Vector3(0.72, 1.9, 0.72)
+const LEGACY_MODEL_SCALE := Vector3(0.9, 4.8, 0.9)
+
 var _growth: MultiMeshInstance3D
 var _multimesh: MultiMesh
 var _legacy_growth: MultiMeshInstance3D
@@ -14,34 +19,36 @@ func _ready() -> void:
 	EventBus.campaign_garden_state_loaded.connect(_on_campaign_garden_state_loaded)
 	EventBus.campaign_legacy_garden_loaded.connect(_on_campaign_legacy_garden_loaded)
 
-static func _build_blade_mesh(height: float, width: float) -> ArrayMesh:
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for angle: float in [0.0, PI * 0.5]:
-		var right := Vector3(cos(angle), 0.0, sin(angle)) * width * 0.5
-		var facing := Vector3(-sin(angle), 0.0, cos(angle))
-		var bend := facing * width * 0.32
-		var base_a := -right
-		var base_b := right
-		var tip_a := -right * 0.15 + bend + Vector3.UP * height
-		var tip_b := right * 0.15 + bend + Vector3.UP * height
+static func _first_mesh_instance(root: Node) -> MeshInstance3D:
+	if root is MeshInstance3D:
+		return root as MeshInstance3D
+	for child: Node in root.get_children():
+		var match := _first_mesh_instance(child)
+		if match != null:
+			return match
+	return null
 
-		surface.set_normal(facing)
-		surface.add_vertex(base_a)
-		surface.add_vertex(base_b)
-		surface.add_vertex(tip_b)
-		surface.add_vertex(base_a)
-		surface.add_vertex(tip_b)
-		surface.add_vertex(tip_a)
-
-		surface.set_normal(-facing)
-		surface.add_vertex(base_b)
-		surface.add_vertex(base_a)
-		surface.add_vertex(tip_a)
-		surface.add_vertex(base_b)
-		surface.add_vertex(tip_a)
-		surface.add_vertex(tip_b)
-	return surface.commit()
+static func _mesh_from_scene(scene: PackedScene, scale: Vector3, use_instance_tint: bool) -> ArrayMesh:
+	var root := scene.instantiate()
+	var mesh_instance := _first_mesh_instance(root)
+	assert(mesh_instance != null and mesh_instance.mesh != null, "Imported foliage scene must contain a MeshInstance3D")
+	var source := mesh_instance.mesh
+	var result := ArrayMesh.new()
+	var scale_transform := Transform3D(Basis.from_scale(scale), Vector3.ZERO)
+	for surface_index: int in range(source.get_surface_count()):
+		var surface := SurfaceTool.new()
+		surface.begin(source.surface_get_primitive_type(surface_index))
+		surface.append_from(source, surface_index, scale_transform)
+		surface.commit(result)
+		var material := source.surface_get_material(surface_index)
+		if material != null:
+			material = material.duplicate()
+			if use_instance_tint and material is StandardMaterial3D:
+				(material as StandardMaterial3D).albedo_color = Color.WHITE
+				(material as StandardMaterial3D).vertex_color_use_as_albedo = true
+			result.surface_set_material(result.get_surface_count() - 1, material)
+	root.free()
+	return result
 
 func _build_growth_field() -> void:
 	_growth = MultiMeshInstance3D.new()
@@ -50,21 +57,13 @@ func _build_growth_field() -> void:
 	_multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	_multimesh.use_colors = true
 	_multimesh.instance_count = CorruptionDirector.GRID_WIDTH * CorruptionDirector.GRID_HEIGHT
-	var blade := _build_blade_mesh(0.48, 0.1)
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color.WHITE
-	material.vertex_color_use_as_albedo = true
-	material.emission_enabled = true
-	material.emission = Color(0.018, 0.055, 0.012)
-	material.emission_energy_multiplier = 0.45
-	material.roughness = 0.92
-	blade.surface_set_material(0, material)
+	var blade := _mesh_from_scene(GROWTH_MODEL, GROWTH_MODEL_SCALE, true)
 	_multimesh.mesh = blade
 	_growth.multimesh = _multimesh
 	add_child(_growth)
 	for index: int in range(_multimesh.instance_count):
 		var variation: float = 0.5 + sin(index * 2.417) * 0.5
-		_multimesh.set_instance_color(index, Color(0.08 + variation * 0.08, 0.3 + variation * 0.22, 0.055 + variation * 0.06, 1.0))
+		_multimesh.set_instance_color(index, Color(0.13 + variation * 0.12, 0.38 + variation * 0.26, 0.09 + variation * 0.1, 1.0))
 		_set_growth_transform(index, 0.0)
 
 func _build_legacy_field() -> void:
@@ -72,23 +71,15 @@ func _build_legacy_field() -> void:
 	_legacy_growth.name = "LegacyGardenMemory"
 	_legacy_multimesh = MultiMesh.new()
 	_legacy_multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	_legacy_multimesh.use_colors = true
+	# The flower has separate authored stem and petal materials. A single
+	# per-instance tint would flatten that useful color separation.
+	_legacy_multimesh.use_colors = false
 	_legacy_multimesh.instance_count = CorruptionDirector.GRID_WIDTH * CorruptionDirector.GRID_HEIGHT
-	var flower := _build_blade_mesh(0.76, 0.16)
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color.WHITE
-	material.vertex_color_use_as_albedo = true
-	material.emission_enabled = true
-	material.emission = Color(0.12, 0.24, 0.035)
-	material.emission_energy_multiplier = 1.1
-	material.roughness = 0.74
-	flower.surface_set_material(0, material)
+	var flower := _mesh_from_scene(LEGACY_MODEL, LEGACY_MODEL_SCALE, false)
 	_legacy_multimesh.mesh = flower
 	_legacy_growth.multimesh = _legacy_multimesh
 	add_child(_legacy_growth)
 	for index: int in range(_legacy_multimesh.instance_count):
-		var variation: float = 0.5 + sin(index * 1.913) * 0.5
-		_legacy_multimesh.set_instance_color(index, Color(0.2 + variation * 0.14, 0.5 + variation * 0.28, 0.08 + variation * 0.08, 0.9))
 		_set_legacy_transform(index, 0.0, 0)
 
 func _on_corruption_field_changed(values: PackedFloat32Array, width: int, height: int, purity: float, _anchor: float) -> void:
