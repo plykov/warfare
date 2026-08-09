@@ -23,8 +23,10 @@ func _run() -> void:
 	_test_boss_catalog()
 	_test_pause_lifecycle()
 	_test_garden_snapshot_round_trip()
+	_test_cross_mission_restoration_legacy()
 	_test_v2_save_migration()
 	_test_rank_doctrine_profiles()
+	_test_rank_world_readability()
 	_test_debug_console_commands()
 	_test_sevenfold_authority_gate()
 	_test_three_law_legislation()
@@ -40,7 +42,7 @@ func _run() -> void:
 	_test_uncapped_strafe_acceleration()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 31 passed")
+		print("GARDEN RECLAIMED TESTS: 33 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -159,16 +161,20 @@ func _test_legacy_save_migration() -> void:
 
 func _test_weapon_identity_catalog() -> void:
 	var seen: Dictionary = {}
+	var bow: WeaponResource
 	for path: String in WeaponManager.WEAPON_PATHS:
 		var weapon := load(path) as WeaponResource
 		_assert(weapon != null, "Every manifestation resource must load")
 		if weapon == null:
 			continue
 		seen[weapon.weapon_id] = true
+		if weapon.weapon_id == &"drawn_bow":
+			bow = weapon
 		_assert(not weapon.role.is_empty(), "Every manifestation must declare a tactical role")
 		_assert(not weapon.counterplay.is_empty(), "Every manifestation must explain its counterplay")
 		_assert(not weapon.secondary_name.is_empty(), "Every manifestation must name its alternate expression")
 	_assert(seen.size() == 12, "All twelve carried manifestations must remain distinct")
+	_assert(bow != null and bow.damage_type == &"precision", "Drawn Bow must remain precision context rather than bypassing kinetic-only counterplay")
 
 func _test_boss_catalog() -> void:
 	var bosses: int = 0
@@ -215,6 +221,23 @@ func _test_garden_snapshot_round_trip() -> void:
 	GameState._reset_for_test()
 	IntercessorSystem._reset_for_test()
 
+func _test_cross_mission_restoration_legacy() -> void:
+	var cell_count: int = CorruptionDirector.GRID_WIDTH * CorruptionDirector.GRID_HEIGHT
+	var mission_two_cells: Array[float] = []
+	mission_two_cells.resize(cell_count)
+	mission_two_cells.fill(0.82)
+	mission_two_cells[73] = 0.08
+	var future_cells: Array[float] = []
+	future_cells.resize(cell_count)
+	future_cells.fill(0.0)
+	var legacy: Dictionary = GameState.build_legacy_garden_state(6, {
+		"1": {"cells": mission_two_cells, "purity": 0.74},
+		"7": {"cells": future_cells, "purity": 1.0}
+	})
+	_assert(int(legacy.get("source_count", 0)) == 1, "Mission 7 must inherit completed gardens, never future commission state")
+	_assert(is_equal_approx(float((legacy.get("cells", []) as Array)[73]), 0.08), "A zone restored in mission 2 must still be green in mission 7")
+	_assert(AudioDirector.restoration_stem_gain(1, float(legacy.get("mean_purity", 0.0))) > 0.0, "Persistent garden memory must add an audible restoration stem")
+
 func _test_v2_save_migration() -> void:
 	GameState._reset_for_test()
 	GameState._apply_progress_data({"save_version": 2, "selected_mission": 2, "unlocked_count": 4, "completed": ["0", "1"], "mission_records": {"0": {"attempts": 2, "clears": 1}}})
@@ -231,6 +254,19 @@ func _test_rank_doctrine_profiles() -> void:
 	EventBus.rank_override_requested.emit(7)
 	_assert(RankSystem.weapon_tier() == 3, "One of the Seven must manifest weapon tier 3")
 	_assert(RankSystem.damage_resistance() > 0.2, "Capstone doctrine must provide a meaningful ward")
+	RankSystem._reset_for_test()
+
+func _test_rank_world_readability() -> void:
+	var previous_span: float = 0.0
+	for index: int in range(8):
+		var span: float = RankManifestation.silhouette_span_for_rank(index)
+		_assert(span > previous_span, "Each rank must widen Ariel's world silhouette")
+		previous_span = span
+	_assert(RankManifestation.silhouette_span_for_rank(7) >= RankManifestation.silhouette_span_for_rank(0) * 3.0, "Rank 8 must remain unmistakable from rank 1 at long range")
+	EventBus.rank_override_requested.emit(6)
+	_assert(RankSystem.host_formation_size() == 5, "Archangel must call an expanded Host formation")
+	EventBus.rank_override_requested.emit(7)
+	_assert(RankSystem.host_formation_size() == 7, "One of the Seven must call a seven-member Host formation")
 	RankSystem._reset_for_test()
 
 func _test_debug_console_commands() -> void:
@@ -295,6 +331,8 @@ func _test_faction_combat_profiles() -> void:
 	var demon := EnemyBase.new()
 	_assert(fallen.uses_projectiles, "Fallen enemies must provide the campaign's ranged projectile pressure")
 	_assert(not synthetic.spreads_corruption, "Synthetic enemies must remain fabricated rather than corrupting ground")
+	_assert(synthetic.can_take_damage(&"kinetic"), "Synthetic enemies must accept kinetic manifestations")
+	_assert(not synthetic.can_take_damage(&"explosive") and not synthetic.can_take_damage(&"purify"), "Synthetic enemies must reject every non-kinetic damage context")
 	_assert(demon.spreads_corruption and not demon.uses_projectiles, "Demons must retain objective pressure as their distinct combat profile")
 	fallen.free()
 	synthetic.free()

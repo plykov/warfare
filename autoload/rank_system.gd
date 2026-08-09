@@ -56,6 +56,13 @@ func has_ophanim_dash() -> bool:
 func has_ascent() -> bool:
 	return rank_index >= 4
 
+func host_formation_size() -> int:
+	if rank_index >= 7:
+		return 7
+	if rank_index >= 6:
+		return 5
+	return 3
+
 func strip_rank() -> void:
 	rank_index = maxi(0, rank_index - 1)
 	_announce()

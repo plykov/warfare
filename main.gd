@@ -80,7 +80,7 @@ func _process(delta: float) -> void:
 	if _mission.synthetic_trigger >= 0.0 and _latest_purity >= _mission.synthetic_trigger and not _spawned_synthetic:
 		_spawned_synthetic = true
 		_spawn_enemy(SYNTHETIC_SCRIPT, _edge_spawn_position())
-		EventBus.message_posted.emit("FABRICATED IDOL // PURIFICATION HAS NO HOLD", &"danger")
+		EventBus.message_posted.emit("FABRICATED IDOL // SWITCH TO KINETIC [5, 8, 11]", &"danger")
 
 func _build_environment() -> void:
 	var world_environment := WorldEnvironment.new()
@@ -319,9 +319,11 @@ func _on_slippery_field_requested(position: Vector3, radius: float, duration: fl
 	add_child(field)
 
 func _on_host_requested(position: Vector3) -> void:
-	for i: int in range(3):
+	var formation_size: int = RankSystem.host_formation_size()
+	for i: int in range(formation_size):
 		var member: Node3D = HOST_SCRIPT.new() as Node3D
-		member.position = position + Vector3(cos(TAU * i / 3.0) * 3.0, 1.0, sin(TAU * i / 3.0) * 3.0)
+		var ring_radius: float = 3.0 + maxf(0.0, formation_size - 3) * 0.22
+		member.position = position + Vector3(cos(TAU * i / float(formation_size)) * ring_radius, 1.0, sin(TAU * i / float(formation_size)) * ring_radius)
 		add_child(member)
 	EventBus.host_arrived.emit()
 

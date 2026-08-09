@@ -191,17 +191,18 @@ func _build_body() -> void:
 	eye_material.emission_enabled = true
 	eye_material.emission = Color(1.0, 0.25, 0.02)
 	eye_material.emission_energy_multiplier = 4.0
-	for side: float in [-1.0, 1.0]:
-		var horn := MeshInstance3D.new()
-		var horn_mesh := CylinderMesh.new()
-		horn_mesh.top_radius = 0.0
-		horn_mesh.bottom_radius = 0.14 * scale_factor
-		horn_mesh.height = 0.7 * scale_factor
-		horn.mesh = horn_mesh
-		horn.material_override = _body_material
-		horn.position = Vector3(side * 0.28, 1.95, 0.0) * scale_factor
-		horn.rotation.z = side * 0.45
-		add_child(horn)
+	if kind != &"SYNTHETIC":
+		for side: float in [-1.0, 1.0]:
+			var horn := MeshInstance3D.new()
+			var horn_mesh := CylinderMesh.new()
+			horn_mesh.top_radius = 0.0
+			horn_mesh.bottom_radius = 0.14 * scale_factor
+			horn_mesh.height = 0.7 * scale_factor
+			horn.mesh = horn_mesh
+			horn.material_override = _body_material
+			horn.position = Vector3(side * 0.28, 1.95, 0.0) * scale_factor
+			horn.rotation.z = side * 0.45
+			add_child(horn)
 	var eye := MeshInstance3D.new()
 	var eye_mesh := SphereMesh.new()
 	eye_mesh.radius = 0.11 * scale_factor

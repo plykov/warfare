@@ -6,15 +6,15 @@ func _ready() -> void:
 func _on_feedback(kind: StringName, position: Vector3, tint: Color, strength: float) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	var count: int = 6 if kind == &"deflect" else 1
+	var count: int = 8 if kind == &"synthetic_ricochet" else (6 if kind == &"deflect" else 1)
 	for index: int in range(count):
 		_spawn_effect(kind, position, tint, strength, index, count)
 
 func _spawn_effect(kind: StringName, position: Vector3, tint: Color, strength: float, index: int, count: int) -> void:
 	var effect := MeshInstance3D.new()
-	if kind == &"deflect":
+	if kind in [&"deflect", &"synthetic_ricochet"]:
 		var spark := BoxMesh.new()
-		spark.size = Vector3(0.025, 0.025, 0.52)
+		spark.size = Vector3(0.025, 0.025, 0.72 if kind == &"synthetic_ricochet" else 0.52)
 		effect.mesh = spark
 		var angle: float = TAU * float(index) / float(maxi(1, count))
 		effect.rotation = Vector3(angle * 0.3, angle, angle * 0.65)
@@ -42,7 +42,7 @@ func _spawn_effect(kind: StringName, position: Vector3, tint: Color, strength: f
 	effect.material_override = material
 	add_child(effect)
 	var scale_factor: float = 0.35 if reduced_flash else (0.5 if kind == &"zone" else 0.16)
-	var final_scale: float = clampf(strength * scale_factor, 0.4, 7.0) * (0.7 if kind == &"deflect" else 1.0)
+	var final_scale: float = clampf(strength * scale_factor, 0.4, 7.0) * (0.7 if kind in [&"deflect", &"synthetic_ricochet"] else 1.0)
 	var tween := create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(effect, "scale", Vector3.ONE * final_scale, 0.22)
