@@ -22,7 +22,7 @@ contract.
 | **M15** | New Game+ / Mastery mode | **Done** | `autoload/game_state.gd`, `autoload/corruption_director.gd`, `autoload/encounter_director.gd`, `autoload/mission_director.gd`, `ui/hud.gd` | No new mission fields needed — NG+ is a single stacking multiplier consumed at the same read sites M13's difficulty setting already touches |
 | **M16** | Post-campaign challenge missions | **Done** | `missions/data/mission_09..12.tres`, `autoload/game_state.gd` (`MISSION_PATHS` extended) | Same reasoning the original doc used for M11: content only, composed from the 6 existing objective primitives, no seventh primitive, no new arena geometry |
 | **M17** | Cross-platform export | **Done** | `export_presets.cfg`, `scripts/verify.sh`, `scripts/build_export.sh`, `scripts/smoke_export.sh`, `.github/workflows/build.yml` | Godot's export system was already headless-verified for Windows in CI; this is config plus two new CI legs, not engine code |
-| **M18** | Art/audio pass | Not started | `world/chapter_arena.gd` (keep its recipe contract), `autoload/audio_director.gd` (keep its crossfade contract) | The original scope doc flagged art as "the only human-required deliverable." This is that line item, not a systems change — and it's explicitly the one milestone here that is *not* about minimizing rewrite, it's about spending the budget Phase 1 deliberately left untouched. Needs an artist/asset pipeline decision from the team before code work starts |
+| **M18** | Art/audio pass | **Scoped, engine-side track approved** | See breakdown below | Splits into an asset-free "engine-side polish" track (approved, scoped below) and two asset-dependent tracks (art assets, audio assets) that stay blocked pending a source/budget decision |
 
 **Explicitly not in this scope:** multiplayer/co-op. Nothing in Phase 1 or in this list implies it, and it
 would be the first change to force `EventBus` to become multi-peer-aware — a real architecture change, not
@@ -97,6 +97,53 @@ reads `MISSION_PATHS.size()` needed no changes; only tests with a hardcoded miss
   authoritative source is what your local Godot 4.4.1 editor writes when you use its Add... button in the
   Export dialog. Please open the project in the editor once and diff `export_presets.cfg` before relying on
   these in CI.
+
+## M18 — Art/audio pass (scoped, not yet built)
+
+Investigated the actual rendering/audio code before writing anything down, rather than assume the
+original scope doc's design was what shipped. It wasn't, in one load-bearing way:
+
+- **Geometry** is procedural `BoxMesh` primitives (`world/chapter_arena.gd`). "Foliage"
+  (`world/restoration_director.gd`) is tinted `PrismMesh` blades on a `MultiMeshInstance3D` — not plant
+  models.
+- **There are zero `.gdshader` files in the repo.** The original Phase-1 doc's S7 spec called for a
+  shared corruption-mask texture read by one global shader uniform ("one texture, one uniform, every
+  material reads it"). That was never built. What actually ships instead: `main.gd` sets a per-tile
+  `StandardMaterial3D.albedo_color` on every individual ground `MeshInstance3D` directly in script. It
+  works, but it's the one place Phase 1's own design doc and Phase 1's own code disagree — closing that
+  gap is M18a below.
+- **Audio** (`autoload/audio_director.gd`) is 100% synthesized sine/harmonic tones via
+  `AudioStreamGenerator`. No `.ogg`/`.wav` files anywhere.
+- **`assets/`** contains exactly one file: the title-screen key art PNG.
+
+That last point is why "art/audio pass" isn't one milestone-sized decision — it's three, and only one is
+gradeable without a human sourcing decision first:
+
+| Track | Needs external assets? | Status |
+|---|---|---|
+| **M18-engine** — shader/material/lighting/foliage polish | No — procedural only (`FastNoiseLite`, `NoiseTexture2D`, `ProceduralSkyMaterial`, hand-authored meshes) | **Approved, scoped below** |
+| **M18-art** — real 3D models/textures for arenas, weapons, characters | Yes — artist commission or a sourced/generated asset pack | Deferred pending a source/budget decision |
+| **M18-audio** — real music stems, SFX, voice-over | Yes — licensed library, composer, or AI-generated audio | Deferred pending a source/budget decision |
+
+### M18-engine breakdown
+
+| # | Item | Touches | Contract preserved |
+|---|---|---|---|
+| **M18a** | Shared corruption-mask shader | New `world/shaders/corruption.gdshader`; `autoload/corruption_director.gd` (publish an `R8` texture from `cells` instead of only holding the array); `main.gd` (ground tiles read the shader instead of getting per-tile `albedo_color` writes) | `CorruptionDirector.sample()`/`purify()`/`corrupt()` and every signal contract stay untouched — this is a rendering-layer swap under data that doesn't change. The `high_contrast` accessibility toggle becomes a shader uniform instead of a hardcoded branch, same visible behavior. |
+| **M18b** | Procedural sky + purity-reactive lighting | `main.gd` (`Environment.background_mode` from flat `BG_COLOR` to `ProceduralSkyMaterial`, driven by the same purity value that already drives fog) | No new signals — reads the same `zone_purity`-derived values `main.gd` already computes for fog/ambient color. |
+| **M18c** | Richer procedural materials on arena structures | `world/chapter_arena.gd`'s `_add_structure()` (add a runtime `FastNoiseLite`-driven normal/roughness detail pass to the existing `StandardMaterial3D`) | `ChapterArena.recipe_for()` — the actual geometry layout data every test and every mission asserts against — is untouched; only the material each box gets is richer. |
+| **M18d** | Foliage mesh upgrade | `world/restoration_director.gd` (`_build_growth_field()`/`_build_legacy_field()`: replace the flat `PrismMesh` with a small hand-built bent-blade `ArrayMesh`, still procedural, still one draw call via `MultiMesh`) | `MultiMesh.instance_count`, the per-cell transform math, and the `restoration_feedback_changed`/`restoration_legacy_changed` signals are untouched — this only changes what mesh each instance is. |
+
+**Sequencing:** M18a first — it's the one item that's arguably a Phase-1 spec gap, not new scope, and
+everything downstream (shaders reacting to purity) benefits from the mask texture existing. M18b/M18c/M18d
+after, independently orderable.
+
+**Testing gap, stated plainly:** the project's `renderer/rendering_method` is `gl_compatibility` and CI runs
+`--headless`, which does not exercise the GPU pipeline — a shader with a syntax error would not be caught
+by `test_runner.tscn`, `smoke_game.tscn`, or `campaign_smoke.tscn`. `CLAUDE.md`'s "launch `main.tscn` for a
+play check" step is not optional for this milestone the way it's a formality for pure-logic changes; it's
+the only check that actually catches a broken shader. I'll call this out again at the top of the PR when
+M18a lands.
 
 ## Test suite changes
 
