@@ -166,15 +166,19 @@ the only check that actually catches a broken shader.
 - Removed now-dead code this left behind: `main.gd`'s `_garden_color` var (only read by the coloring loop
   that no longer exists) and its no-op `_on_settings_changed` handler (the high-contrast reaction now lives
   in `CorruptionDirector._on_settings_changed_for_shader`).
-- **Unverified API surface, stated plainly:** `Image.create()`, `ImageTexture.create_from_image()`,
-  `ImageTexture.set_image()`, and the `RenderingServer.global_shader_parameter_*` family are all used here
-  for the first time in this codebase — there was no existing call site to confirm the exact Godot 4.4.1
-  signatures against. `smoke_game.tscn`/`campaign_smoke.tscn` instantiate `main.tscn` and would fail
-  immediately if any of these calls errored at `_ready()`, which is *some* headless coverage, but it does
-  not confirm the shader actually compiles or renders correctly — that's still only the manual play check.
-- Added `_test_corruption_shader_globals` to `tests/run_tests.gd`, asserting the registered globals exist
-  with the right types/values and that selecting a mission republishes its `garden_color`. This is the
-  most CI can verify without a GPU.
+- **Confirmed finding, not speculation:** CI caught that
+  `RenderingServer.global_shader_parameter_get()` returns `Nil` under `--headless` on all three platforms
+  (Linux, macOS, Windows) — for every parameter, including plain `Vector2`/`Vector3` ones, not just the
+  `sampler2D`. `global_shader_parameter_add()`/`set()` never errored, so registration itself isn't the
+  problem; the readback specifically is unreliable headlessly. First `_test_corruption_shader_globals`
+  tried to assert against that readback and crashed CI (a hard-typed `var x: Vector3 = ...` assignment from
+  a `Nil` return is a runtime type error, not a soft assertion failure) — rewritten to assert against
+  `CorruptionDirector`'s own internal state (`_mask_texture`'s dimensions, and that painting a cell shows up
+  in the published pixels) instead, which doesn't depend on the RenderingServer round-trip.
+  `Image.create()`/`ImageTexture.create_from_image()`/`ImageTexture.set_image()` all worked fine headlessly.
+  Whether the shader actually receives correct values through `global_shader_parameter_add()`'s default-value
+  argument when a real GPU renderer is attached — as opposed to only through the now-unverifiable `set()`
+  calls — is still an open question the manual play check needs to answer, not a closed one.
 
 ## Test suite changes
 
