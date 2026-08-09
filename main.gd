@@ -7,6 +7,9 @@ const SYNTHETIC_SCRIPT: Script = preload("res://enemies/synthetic.gd")
 const THIN_PLACE_SCRIPT: Script = preload("res://world/thin_place.gd")
 const HOST_SCRIPT: Script = preload("res://host/host_member.gd")
 const PRINCE_SCRIPT: Script = preload("res://enemies/territorial_prince.gd")
+const HOSTILE_PROJECTILE_SCRIPT: Script = preload("res://enemies/hostile_projectile.gd")
+const SLIPPERY_FIELD_SCRIPT: Script = preload("res://world/slippery_field.gd")
+const CHAPTER_ARENA_SCRIPT: Script = preload("res://world/chapter_arena.gd")
 
 var _tiles: Array[MeshInstance3D] = []
 var _tile_materials: Array[StandardMaterial3D] = []
@@ -28,6 +31,9 @@ func _ready() -> void:
 	randomize()
 	_build_environment()
 	_build_arena()
+	var chapter_arena: ChapterArena = CHAPTER_ARENA_SCRIPT.new() as ChapterArena
+	chapter_arena.name = "ChapterArena"
+	add_child(chapter_arena)
 	_build_corruption_tiles()
 	_spawn_thin_place()
 	_spawn_player()
@@ -43,6 +49,8 @@ func _ready() -> void:
 	EventBus.restoration_feedback_changed.connect(_on_restoration_feedback_changed)
 	EventBus.sevenfold_granted.connect(_on_sevenfold_granted)
 	EventBus.debug_spawn_requested.connect(_on_debug_spawn_requested)
+	EventBus.hostile_projectile_requested.connect(_on_hostile_projectile_requested)
+	EventBus.slippery_field_requested.connect(_on_slippery_field_requested)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -299,6 +307,16 @@ func _on_debug_spawn_requested(kind: StringName, count: int) -> void:
 			&"SYNTHETIC": _spawn_enemy(SYNTHETIC_SCRIPT, _edge_spawn_position())
 			&"PRINCE": _on_boss_spawn_requested(&"DEBUG_PRINCE", "DEBUG TERRITORIAL PRINCE", 0.8)
 			_: _spawn_demon()
+
+func _on_hostile_projectile_requested(origin: Vector3, direction: Vector3, speed: float, damage: float, kind: StringName) -> void:
+	var projectile: HostileProjectile = HOSTILE_PROJECTILE_SCRIPT.new() as HostileProjectile
+	projectile.configure(origin, direction, speed, damage, kind)
+	add_child(projectile)
+
+func _on_slippery_field_requested(position: Vector3, radius: float, duration: float) -> void:
+	var field: SlipperyField = SLIPPERY_FIELD_SCRIPT.new() as SlipperyField
+	field.configure(position, radius, duration)
+	add_child(field)
 
 func _on_host_requested(position: Vector3) -> void:
 	for i: int in range(3):

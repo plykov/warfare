@@ -86,6 +86,9 @@ func _fire(alt: bool) -> void:
 	var weapon: WeaponResource = weapons[current_index].duplicate() as WeaponResource
 	weapon.damage *= 1.0 + (_weapon_tier - 1) * 0.28
 	weapon.radius *= 1.0 + (_weapon_tier - 1) * 0.08
+	if alt:
+		weapon.damage *= 1.18
+		weapon.radius *= 1.12
 	if weapon.requires_commission and not IntercessorSystem.has_commission():
 		EventBus.weapon_denied.emit("Commission required — press E to Declare")
 		EventBus.message_posted.emit("NO AUTHORITY // DECLARE BEFORE REBUKE", &"danger")
@@ -106,7 +109,12 @@ func _fire(alt: bool) -> void:
 	EventBus.combat_feedback.emit(&"muzzle", camera.global_position + -camera.global_basis.z * 1.2, weapon.tint, 1.0)
 
 	match weapon.weapon_id:
-		&"flaming_sword", &"sickle":
+		&"flaming_sword":
+			if alt:
+				EventBus.projectile_parry_requested.emit(camera.global_position, weapon.radius + 1.5, -camera.global_basis.z)
+				EventBus.combat_feedback.emit(&"impact", camera.global_position + -camera.global_basis.z * 1.5, weapon.tint, weapon.radius)
+			_melee_sweep(weapon, alt)
+		&"sickle":
 			_melee_sweep(weapon, alt)
 		&"trumpet":
 			_area_strike(global_position, weapon)
@@ -114,7 +122,7 @@ func _fire(alt: bool) -> void:
 			EventBus.rebuke_requested.emit(camera.global_position, weapon.radius)
 			var chained: Dictionary = _ray_hit(weapon.range)
 			if not chained.is_empty():
-				EventBus.bind_requested.emit(chained.collider, 4.0)
+				EventBus.bind_requested.emit(chained.collider, 7.0 if alt else 4.0)
 				EventBus.damage_requested.emit(chained.collider, weapon.damage, weapon.damage_type, chained.position)
 		&"measuring_rod":
 			for enemy: Node in get_tree().get_nodes_in_group("enemies"):
@@ -123,13 +131,20 @@ func _fire(alt: bool) -> void:
 			EventBus.message_posted.emit("SURVEY COMPLETE // HOSTILES AND CORRUPTION REVEALED", &"info")
 			EventBus.audio_requested.emit(&"declare")
 		&"inkhorn":
-			var marked: Dictionary = _ray_hit(weapon.range)
-			if not marked.is_empty():
-				EventBus.mark_requested.emit(marked.collider, 8.0)
+			if alt:
+				var host: Node3D = _nearest_group_member("host", weapon.range)
+				if host != null:
+					EventBus.seal_requested.emit(host, 10.0)
+				else:
+					EventBus.message_posted.emit("INKHORN // NO HOST ALLY IN RANGE", &"info")
+			else:
+				var marked: Dictionary = _ray_hit(weapon.range)
+				if not marked.is_empty():
+					EventBus.mark_requested.emit(marked.collider, 8.0)
 		&"chariot":
 			_area_strike(get_parent().get_parent().get_parent().global_position, weapon)
-			EventBus.player_dashed.emit()
-		&"live_coal", &"bowl_of_wrath", &"censer", &"millstone":
+			EventBus.player_impulse_requested.emit(10.0 if alt else 6.0)
+		&"live_coal", &"bowl_of_wrath", &"millstone":
 			var impact: Dictionary = _ray_hit(weapon.range)
 			var position: Vector3 = camera.global_position + -camera.global_basis.z * weapon.range
 			if not impact.is_empty():
@@ -139,11 +154,28 @@ func _fire(alt: bool) -> void:
 				EventBus.purification_requested.emit(position, weapon.radius, 0.72)
 			if weapon.weapon_id in [&"live_coal", &"bowl_of_wrath"]:
 				_spawn_zone(position, weapon, alt)
+		&"censer":
+			var censer_hit: Dictionary = _ray_hit(weapon.range)
+			var censer_position: Vector3 = camera.global_position + -camera.global_basis.z * weapon.range
+			if not censer_hit.is_empty():
+				censer_position = censer_hit.position
+			var converted: float = IntercessorSystem.convert_fervency(28.0 if alt else 12.0)
+			weapon.damage += converted * 1.8
+			weapon.radius += converted * 0.035
+			_area_strike(censer_position, weapon)
+			EventBus.purification_requested.emit(censer_position, weapon.radius, 0.4 + converted * 0.012)
+			EventBus.message_posted.emit("CENSER BURST // %.0f FERVENCY CONVERTED" % converted, &"holy")
 		&"drawn_bow":
 			var hit: Dictionary = _ray_hit(weapon.range)
+			var field_position: Vector3 = camera.global_position + -camera.global_basis.z * weapon.range
 			if not hit.is_empty():
 				EventBus.damage_requested.emit(hit.collider, weapon.damage, weapon.damage_type, hit.position)
 				_apply_impulse(hit.collider, hit.position, weapon)
+				EventBus.slow_requested.emit(hit.collider, 3.5 if alt else 1.8, 0.48 if alt else 0.72)
+				field_position = hit.position
+			if alt:
+				field_position.y = 0.04
+				EventBus.slippery_field_requested.emit(field_position, maxf(2.5, weapon.radius * 1.8), 6.0)
 		_:
 			pass
 
@@ -193,6 +225,19 @@ func _ray_hit(distance: float) -> Dictionary:
 	var to: Vector3 = from + -camera.global_basis.z * distance
 	var query := PhysicsRayQueryParameters3D.create(from, to, 0b0101, [get_parent().get_parent().get_parent()])
 	return get_world_3d().direct_space_state.intersect_ray(query)
+
+func _nearest_group_member(group_name: StringName, maximum_distance: float) -> Node3D:
+	var nearest: Node3D
+	var nearest_distance: float = maximum_distance
+	for node: Node in get_tree().get_nodes_in_group(group_name):
+		if not node is Node3D:
+			continue
+		var candidate := node as Node3D
+		var distance: float = camera.global_position.distance_to(candidate.global_position)
+		if distance <= nearest_distance:
+			nearest_distance = distance
+			nearest = candidate
+	return nearest
 
 func _on_rank_profile_changed(_index: int, _name: String, tier: int, _doctrine: String, _passive: String, _power: float, _resistance: float) -> void:
 	_weapon_tier = clampi(tier, 1, 3)

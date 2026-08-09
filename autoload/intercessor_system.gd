@@ -9,6 +9,14 @@ const TOKEN_DURATION: float = 11.0
 const LEGISLATE_COST: float = 55.0
 const HOST_COST: float = 34.0
 const HOST_COOLDOWN: float = 24.0
+const LAW_IDS: Array[StringName] = [&"GROUND_HOLDS", &"NO_UNCLEAN_ENTRY", &"NO_HIDDEN_THING"]
+const LAW_LABELS: PackedStringArray = ["GROUND HOLDS", "NO UNCLEAN ENTRY", "NO HIDDEN THING"]
+const LAW_DESCRIPTIONS: PackedStringArray = [
+	"Purified cells cannot re-corrupt.",
+	"Demons cannot cross the central authority line.",
+	"Fallen concealment is broken across the garden."
+]
+const LAW_COSTS: PackedFloat32Array = [55.0, 45.0, 35.0]
 
 var fervency: float = MAX_FERVENCY
 var is_praying: bool = false
@@ -16,6 +24,7 @@ var tokens: Dictionary = {}
 var zone_laws: Dictionary = {}
 var _host_cooldown: float = 0.0
 var _rank_index: int = 0
+var selected_law: int = 0
 
 func _ready() -> void:
 	EventBus.game_started.connect(_on_game_started)
@@ -26,6 +35,9 @@ func _ready() -> void:
 	EventBus.sevenfold_requested.connect(_on_sevenfold_requested)
 	EventBus.fervency_override_requested.connect(_on_fervency_override_requested)
 	EventBus.token_grant_requested.connect(_on_token_grant_requested)
+	EventBus.law_selection_requested.connect(_on_law_selection_requested)
+	EventBus.legislation_commit_requested.connect(_on_legislation_commit_requested)
+	call_deferred("_emit_law_selection")
 
 func _process(delta: float) -> void:
 	if not GameState.is_playing():
@@ -85,18 +97,30 @@ func consume_commission(token_id: StringName = &"REBuke") -> bool:
 	tokens.erase(token_id)
 	return true
 
+func convert_fervency(requested: float) -> float:
+	if not GameState.is_playing() or requested <= 0.0:
+		return 0.0
+	var converted: float = minf(fervency, requested)
+	fervency -= converted
+	EventBus.fervency_changed.emit(fervency, MAX_FERVENCY)
+	return converted
+
 func legislate(zone_id: StringName, law_id: StringName) -> bool:
-	if fervency < LEGISLATE_COST or not GameState.is_playing():
+	var law_index: int = LAW_IDS.find(law_id)
+	var cost: float = LAW_COSTS[law_index] if law_index >= 0 else LEGISLATE_COST
+	if fervency < cost or not GameState.is_playing():
 		EventBus.law_denied.emit()
 		EventBus.message_posted.emit("LEGISLATION DENIED // FERVENCY LOW", &"danger")
 		return false
-	fervency -= LEGISLATE_COST
+	fervency -= cost
 	var laws: Array = zone_laws.get(zone_id, [])
 	if law_id not in laws:
 		laws.append(law_id)
 	zone_laws[zone_id] = laws
 	EventBus.law_enacted.emit(zone_id, law_id)
-	EventBus.message_posted.emit("LAW ENACTED // GROUND HOLDS", &"holy")
+	EventBus.zone_laws_changed.emit(zone_laws.duplicate(true))
+	var label: String = LAW_LABELS[law_index] if law_index >= 0 else String(law_id)
+	EventBus.message_posted.emit("LAW ENACTED // %s" % label, &"holy")
 	EventBus.audio_requested.emit(&"legislate")
 	return true
 
@@ -105,6 +129,8 @@ func has_law(zone_id: StringName, law_id: StringName) -> bool:
 
 func _on_game_started() -> void:
 	EventBus.fervency_changed.emit(fervency, MAX_FERVENCY)
+	_emit_law_selection()
+	EventBus.zone_laws_changed.emit(zone_laws.duplicate(true))
 
 func _on_threat_density_changed(value: float, position: Vector3) -> void:
 	var threshold: float = 8.0 if _rank_index >= 6 else 11.0
@@ -124,6 +150,7 @@ func _on_campaign_garden_state_loaded(_mission_index: int, state: Dictionary) ->
 	var stored: Variant = state.get("laws", {})
 	if stored is Dictionary:
 		zone_laws = (stored as Dictionary).duplicate(true)
+	EventBus.zone_laws_changed.emit(zone_laws.duplicate(true))
 
 func _on_rank_profile_changed(index: int, _name: String, _tier: int, _doctrine: String, _passive: String, _power: float, _resistance: float) -> void:
 	_rank_index = index
@@ -149,9 +176,21 @@ func _on_token_grant_requested() -> void:
 	tokens[&"REBuke"] = TOKEN_DURATION
 	EventBus.declaration_issued.emit(&"REBuke", TOKEN_DURATION)
 
+func _on_law_selection_requested(delta: int) -> void:
+	selected_law = posmod(selected_law + delta, LAW_IDS.size())
+	_emit_law_selection()
+
+func _on_legislation_commit_requested(zone_id: StringName) -> void:
+	legislate(zone_id, LAW_IDS[selected_law])
+
+func _emit_law_selection() -> void:
+	EventBus.law_selection_changed.emit(selected_law, LAW_IDS[selected_law], LAW_LABELS[selected_law], LAW_DESCRIPTIONS[selected_law], LAW_COSTS[selected_law])
+
 func _reset_for_test() -> void:
 	fervency = MAX_FERVENCY
 	is_praying = false
 	tokens.clear()
 	zone_laws.clear()
 	_host_cooldown = 0.0
+	selected_law = 0
+	_emit_law_selection()

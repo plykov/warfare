@@ -25,6 +25,10 @@ signal declaration_denied
 signal commission_state_changed(active: bool, remaining: float)
 signal law_enacted(zone_id: StringName, law_id: StringName)
 signal law_denied
+signal law_selection_requested(delta: int)
+signal law_selection_changed(index: int, law_id: StringName, label: String, description: String, cost: float)
+signal legislation_commit_requested(zone_id: StringName)
+signal zone_laws_changed(laws: Dictionary)
 signal fervency_changed(value: float, maximum: float)
 
 signal thin_place_contested
@@ -52,6 +56,15 @@ signal weapon_denied(reason: String)
 signal combat_feedback(kind: StringName, position: Vector3, tint: Color, strength: float)
 signal hit_confirmed(defeated: bool, damage_type: StringName)
 signal impulse_requested(target: Node, direction: Vector3, strength: float)
+signal hostile_projectile_requested(origin: Vector3, direction: Vector3, speed: float, damage: float, kind: StringName)
+signal projectile_parry_requested(position: Vector3, radius: float, direction: Vector3)
+signal projectile_deflected(kind: StringName)
+signal enemy_ai_state_changed(kind: StringName, state: StringName)
+signal seal_requested(target: Node, duration: float)
+signal target_sealed(kind: StringName)
+signal slippery_field_requested(position: Vector3, radius: float, duration: float)
+signal slow_requested(target: Node, duration: float, scale: float)
+signal player_impulse_requested(strength: float)
 
 signal mission_progress_changed(purity: float, target: float)
 signal mission_selected(index: int, mission: Resource)
