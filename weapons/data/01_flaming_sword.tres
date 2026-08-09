@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponResource" load_steps=2 format=3]
+
+[ext_resource path="res://weapons/weapon_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_id = &"flaming_sword"
+display_name = "FLAMING SWORD"
+source_note = "Genesis 3:24 — turning every way"
+role = "Purifying melee / projectile guard"
+damage_type = &"purify"
+damage = 38.0
+range = 4.8
+radius = 3.0
+cooldown = 0.28
+tint = Color(1, 0.45, 0.08, 1)

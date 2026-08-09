@@ -1,0 +1,163 @@
+class_name WeaponManager
+extends Node3D
+
+const WEAPON_PATHS: PackedStringArray = [
+	"res://weapons/data/01_flaming_sword.tres",
+	"res://weapons/data/02_live_coal.tres",
+	"res://weapons/data/03_trumpet.tres",
+	"res://weapons/data/04_bowl_of_wrath.tres",
+	"res://weapons/data/05_sickle.tres",
+	"res://weapons/data/06_key_chain.tres",
+	"res://weapons/data/07_censer.tres",
+	"res://weapons/data/08_chariot.tres",
+	"res://weapons/data/09_measuring_rod.tres",
+	"res://weapons/data/10_inkhorn.tres",
+	"res://weapons/data/11_millstone.tres",
+	"res://weapons/data/12_drawn_bow.tres"
+]
+
+@onready var camera: Camera3D = get_parent() as Camera3D
+@onready var weapon_model: MeshInstance3D = $WeaponModel
+@onready var muzzle_light: OmniLight3D = $MuzzleLight
+
+var weapons: Array[WeaponResource] = []
+var current_index: int = 0
+var cooldown: float = 0.0
+var recoil: float = 0.0
+var _rest_z: float = -0.78
+
+func _ready() -> void:
+	for path: String in WEAPON_PATHS:
+		weapons.append(load(path) as WeaponResource)
+	_equip(0)
+
+func _process(delta: float) -> void:
+	cooldown = maxf(0.0, cooldown - delta)
+	recoil = lerpf(recoil, 0.0, minf(1.0, delta * 15.0))
+	weapon_model.position.z = _rest_z + recoil
+	muzzle_light.light_energy = move_toward(muzzle_light.light_energy, 0.0, delta * 18.0)
+	if not GameState.is_playing() or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		return
+
+	if Input.is_action_just_pressed("weapon_next"):
+		_equip(posmod(current_index + 1, weapons.size()))
+	if Input.is_action_just_pressed("weapon_prev"):
+		_equip(posmod(current_index - 1, weapons.size()))
+	for i: int in range(weapons.size()):
+		if Input.is_action_just_pressed("weapon_%d" % (i + 1)):
+			_equip(i)
+	if Input.is_action_pressed("fire"):
+		_fire(false)
+	elif Input.is_action_pressed("alt_fire"):
+		_fire(true)
+
+func _equip(index: int) -> void:
+	current_index = clampi(index, 0, weapons.size() - 1)
+	var weapon: WeaponResource = weapons[current_index]
+	var material := StandardMaterial3D.new()
+	material.albedo_color = weapon.tint
+	material.emission_enabled = true
+	material.emission = weapon.tint
+	material.emission_energy_multiplier = 1.25
+	material.metallic = 0.72
+	material.roughness = 0.24
+	weapon_model.material_override = material
+	var mesh := BoxMesh.new()
+	if weapon.weapon_id in [&"flaming_sword", &"sickle", &"drawn_bow"]:
+		mesh.size = Vector3(0.04, 0.58, 0.04)
+		_rest_z = -0.9
+		weapon_model.position = Vector3(0.5, -0.4, _rest_z)
+		weapon_model.rotation = Vector3(-0.12, 0.0, -0.48)
+	else:
+		mesh.size = Vector3(0.15, 0.12, 0.54)
+		_rest_z = -0.95
+		weapon_model.position = Vector3(0.42, -0.34, _rest_z)
+		weapon_model.rotation = Vector3(-0.12, -0.05, 0.08)
+	weapon_model.mesh = mesh
+	EventBus.weapon_switched.emit(current_index, weapon.display_name)
+
+func _fire(alt: bool) -> void:
+	if cooldown > 0.0:
+		return
+	var weapon: WeaponResource = weapons[current_index]
+	if weapon.requires_commission and not IntercessorSystem.has_commission():
+		EventBus.weapon_denied.emit("Commission required — press E to Declare")
+		EventBus.message_posted.emit("NO AUTHORITY // DECLARE BEFORE REBUKE", &"danger")
+		cooldown = 0.35
+		return
+	if weapon.glory_cost > 0.0:
+		var glory: GloryComponent = get_parent().get_parent().get_parent().get_node("GloryComponent") as GloryComponent
+		if glory == null or not glory.spend(weapon.glory_cost * (1.45 if alt else 1.0)):
+			EventBus.message_posted.emit("GLORY INSUFFICIENT", &"danger")
+			cooldown = 0.3
+			return
+	cooldown = weapon.cooldown
+	recoil = 0.12
+	muzzle_light.light_color = weapon.tint
+	muzzle_light.light_energy = 4.0
+	EventBus.weapon_fired.emit(weapon.weapon_id)
+	EventBus.audio_requested.emit(&"purify")
+
+	match weapon.weapon_id:
+		&"flaming_sword", &"sickle":
+			_melee_sweep(weapon, alt)
+		&"trumpet":
+			_area_strike(global_position, weapon)
+		&"key_chain":
+			EventBus.rebuke_requested.emit(camera.global_position, weapon.radius)
+			var chained: Dictionary = _ray_hit(weapon.range)
+			if not chained.is_empty():
+				EventBus.bind_requested.emit(chained.collider, 4.0)
+				EventBus.damage_requested.emit(chained.collider, weapon.damage, weapon.damage_type, chained.position)
+		&"measuring_rod":
+			EventBus.message_posted.emit("SURVEY COMPLETE // HOSTILES AND CORRUPTION REVEALED", &"info")
+			EventBus.audio_requested.emit(&"declare")
+		&"inkhorn":
+			var marked: Dictionary = _ray_hit(weapon.range)
+			if not marked.is_empty():
+				EventBus.mark_requested.emit(marked.collider, 8.0)
+		&"chariot":
+			_area_strike(get_parent().get_parent().get_parent().global_position, weapon)
+			EventBus.player_dashed.emit()
+		&"live_coal", &"bowl_of_wrath", &"censer", &"millstone":
+			var impact: Dictionary = _ray_hit(weapon.range)
+			var position: Vector3 = camera.global_position + -camera.global_basis.z * weapon.range
+			if not impact.is_empty():
+				position = impact.position
+			_area_strike(position, weapon)
+			if weapon.damage_type != &"kinetic":
+				EventBus.purification_requested.emit(position, weapon.radius, 0.72)
+		&"drawn_bow":
+			var hit: Dictionary = _ray_hit(weapon.range)
+			if not hit.is_empty():
+				EventBus.damage_requested.emit(hit.collider, weapon.damage, weapon.damage_type, hit.position)
+		_:
+			pass
+
+func _melee_sweep(weapon: WeaponResource, alt: bool) -> void:
+	var origin: Vector3 = camera.global_position
+	for enemy: Node in get_tree().get_nodes_in_group("enemies"):
+		if not is_instance_valid(enemy) or not enemy is Node3D:
+			continue
+		var target := enemy as Node3D
+		var to_enemy: Vector3 = target.global_position - origin
+		if to_enemy.length() <= weapon.range:
+			var facing: float = (-camera.global_basis.z).dot(to_enemy.normalized())
+			if facing > (0.1 if alt else 0.48):
+				EventBus.damage_requested.emit(enemy, weapon.damage * (0.75 if alt else 1.0), weapon.damage_type, target.global_position)
+	EventBus.purification_requested.emit(origin + -camera.global_basis.z * 2.0, weapon.radius, 0.45)
+
+func _area_strike(position: Vector3, weapon: WeaponResource) -> void:
+	for enemy: Node in get_tree().get_nodes_in_group("enemies"):
+		if is_instance_valid(enemy) and enemy is Node3D:
+			var target := enemy as Node3D
+			var distance: float = target.global_position.distance_to(position)
+			if distance <= weapon.radius:
+				var falloff: float = 1.0 - distance / maxf(weapon.radius, 0.01) * 0.5
+				EventBus.damage_requested.emit(enemy, weapon.damage * falloff, weapon.damage_type, target.global_position)
+
+func _ray_hit(distance: float) -> Dictionary:
+	var from: Vector3 = camera.global_position
+	var to: Vector3 = from + -camera.global_basis.z * distance
+	var query := PhysicsRayQueryParameters3D.create(from, to, 0b0101, [get_parent().get_parent().get_parent()])
+	return get_world_3d().direct_space_state.intersect_ray(query)

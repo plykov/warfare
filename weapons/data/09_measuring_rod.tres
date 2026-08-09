@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponResource" load_steps=2 format=3]
+
+[ext_resource path="res://weapons/weapon_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_id = &"measuring_rod"
+display_name = "MEASURING ROD"
+source_note = "Ezekiel 40:3 — survey and reveal"
+role = "Tactical scan"
+damage_type = &"utility"
+damage = 0.0
+range = 0.0
+radius = 22.0
+cooldown = 2.0
+tint = Color(0.15, 0.8, 1, 1)

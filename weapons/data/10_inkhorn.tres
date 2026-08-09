@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponResource" load_steps=2 format=3]
+
+[ext_resource path="res://weapons/weapon_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_id = &"inkhorn"
+display_name = "SEALING INKHORN"
+source_note = "Ezekiel 9:2 — mark before the strike"
+role = "Target marking"
+damage_type = &"mark"
+damage = 0.0
+range = 35.0
+radius = 0.0
+cooldown = 0.6
+tint = Color(0.88, 0.8, 0.4, 1)

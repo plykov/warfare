@@ -1,0 +1,75 @@
+class_name HostMember
+extends Node3D
+
+const LIFETIME: float = 14.0
+const ATTACK_INTERVAL: float = 0.55
+
+var _life: float = LIFETIME
+var _attack: float = 0.0
+var _phase: float = 0.0
+
+func _ready() -> void:
+	_build_visual()
+
+func _process(delta: float) -> void:
+	if not GameState.is_playing():
+		return
+	_life -= delta
+	_attack -= delta
+	_phase += delta
+	position.y = 1.4 + sin(_phase * 2.4) * 0.25
+	rotate_y(delta * 0.7)
+	if _attack <= 0.0:
+		_attack = ATTACK_INTERVAL
+		_strike()
+	if _life <= 0.0:
+		EventBus.host_withdrawn.emit()
+		queue_free()
+
+func _strike() -> void:
+	var best: Node3D
+	var best_score: float = -INF
+	for node: Node in get_tree().get_nodes_in_group("enemies"):
+		if not node is Node3D:
+			continue
+		var enemy := node as Node3D
+		var distance: float = global_position.distance_to(enemy.global_position)
+		if distance > 16.0:
+			continue
+		var marked_bonus: float = 4.0 if enemy.get("marked_remaining") != null and float(enemy.get("marked_remaining")) > 0.0 else 0.0
+		var score: float = 18.0 - distance + marked_bonus
+		if score > best_score:
+			best_score = score
+			best = enemy
+	if best != null:
+		EventBus.damage_requested.emit(best, 16.0, &"purify", best.global_position)
+		EventBus.purification_requested.emit(best.global_position, 2.5, 0.12)
+
+func _build_visual() -> void:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(0.92, 0.88, 0.68)
+	material.emission_enabled = true
+	material.emission = Color(1.0, 0.62, 0.15)
+	material.emission_energy_multiplier = 2.8
+	material.metallic = 0.45
+	var body := MeshInstance3D.new()
+	var body_mesh := CapsuleMesh.new()
+	body_mesh.radius = 0.25
+	body_mesh.height = 1.2
+	body.mesh = body_mesh
+	body.material_override = material
+	add_child(body)
+	for side: float in [-1.0, 1.0]:
+		var wing := MeshInstance3D.new()
+		var wing_mesh := PrismMesh.new()
+		wing_mesh.size = Vector3(0.12, 1.15, 0.48)
+		wing.mesh = wing_mesh
+		wing.material_override = material
+		wing.position = Vector3(side * 0.48, 0.15, 0.12)
+		wing.rotation.z = side * 0.68
+		add_child(wing)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.58, 0.12)
+	light.light_energy = 2.2
+	light.omni_range = 6.0
+	add_child(light)

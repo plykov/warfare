@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"PRINCES_DELAY"
+chapter = 3
+title = "The Prince's Delay"
+briefing = "A territorial power delays the commission. Hold the ground until prayer opens a path for the Host."
+scripture_reference = "Daniel 10:12–13"
+objective_ids = PackedStringArray("SURVIVE_WAVES", "ESCORT_HOST")
+target_purity = 0.45
+survive_seconds = 70.0
+time_limit = 150.0
+starting_demons = 10
+enemy_budget = 20
+spawn_interval = 2.7
+fallen_trigger = -1.0
+synthetic_trigger = -1.0
+corruption_bias = 0.09
+enemy_power = 1.0
+garden_color = Color(0.08, 0.18, 0.07, 1)
+fog_color = Color(0.14, 0.08, 0.06, 1)

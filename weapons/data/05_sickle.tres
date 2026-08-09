@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WeaponResource" load_steps=2 format=3]
+
+[ext_resource path="res://weapons/weapon_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_id = &"sickle"
+display_name = "SHARP SICKLE"
+source_note = "Revelation 14:14 — the harvest"
+role = "Kinetic anti-swarm sweep"
+damage_type = &"kinetic"
+damage = 45.0
+range = 5.6
+radius = 5.0
+cooldown = 0.52
+tint = Color(0.75, 0.82, 0.9, 1)

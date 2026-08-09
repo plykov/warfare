@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="WeaponResource" load_steps=2 format=3]
+
+[ext_resource path="res://weapons/weapon_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_id = &"censer"
+display_name = "CENSER OF ALTAR-FIRE"
+source_note = "Revelation 8:5 — prayer made impact"
+role = "Explosive prayer conversion"
+damage_type = &"explosive"
+damage = 68.0
+range = 32.0
+radius = 5.5
+cooldown = 1.5
+glory_cost = 16.0
+tint = Color(1, 0.55, 0.12, 1)

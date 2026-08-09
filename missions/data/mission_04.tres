@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"THE_REBUKE"
+chapter = 4
+title = "The Rebuke"
+briefing = "A Fallen mirror walks the garden. Personal strength cannot move it. Receive the Word, rebuke, and bind."
+scripture_reference = "Jude 9"
+objective_ids = PackedStringArray("BIND_TARGET", "PURIFY_ZONE")
+target_purity = 0.63
+starting_demons = 8
+enemy_budget = 19
+spawn_interval = 2.8
+fallen_trigger = 0.34
+synthetic_trigger = -1.0
+corruption_bias = 0.08
+enemy_power = 1.08
+garden_color = Color(0.12, 0.16, 0.08, 1)
+fog_color = Color(0.13, 0.06, 0.16, 1)
+accent_color = Color(0.74, 0.42, 1, 1)

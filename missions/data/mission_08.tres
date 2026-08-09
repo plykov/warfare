@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"THE_SEVENTH_STANDS"
+chapter = 8
+title = "The Seventh Stands"
+briefing = "Sea and land darken under one tide. Hold every verb together: reclaim, restore, receive, rebuke, bind, and break."
+scripture_reference = "Revelation 8:2"
+objective_ids = PackedStringArray("PURIFY_ZONE", "RESTORE_THIN_PLACE", "BIND_TARGET", "BREAK_IDOL", "SURVIVE_WAVES", "ESCORT_HOST")
+target_purity = 0.74
+restore_integrity = 92.0
+starting_thin_integrity = 25.0
+survive_seconds = 100.0
+time_limit = 220.0
+starting_demons = 15
+enemy_budget = 28
+spawn_interval = 1.8
+fallen_trigger = 0.32
+synthetic_trigger = 0.36
+corruption_bias = 0.16
+enemy_power = 1.42
+garden_color = Color(0.11, 0.2, 0.075, 1)
+fog_color = Color(0.12, 0.035, 0.035, 1)
+accent_color = Color(1, 0.62, 0.12, 1)

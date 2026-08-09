@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="WeaponResource" load_steps=2 format=3]
+
+[ext_resource path="res://weapons/weapon_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_id = &"key_chain"
+display_name = "KEY & GREAT CHAIN"
+source_note = "Revelation 20:1 — commissioned binding"
+role = "Rebuke and bind Fallen"
+damage_type = &"bind"
+damage = 20.0
+range = 22.0
+radius = 7.0
+cooldown = 1.2
+requires_commission = true
+tint = Color(0.92, 0.92, 1, 1)

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="WeaponResource" load_steps=2 format=3]
+
+[ext_resource path="res://weapons/weapon_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_id = &"trumpet"
+display_name = "TRUMPET"
+source_note = "Revelation 8:2 — sonic judgment"
+role = "Screen-wide stagger"
+damage_type = &"sonic"
+damage = 26.0
+range = 0.0
+radius = 14.0
+cooldown = 2.4
+glory_cost = 14.0
+tint = Color(1, 0.83, 0.32, 1)

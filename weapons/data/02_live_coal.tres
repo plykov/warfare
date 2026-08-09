@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="WeaponResource" load_steps=2 format=3]
+
+[ext_resource path="res://weapons/weapon_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+weapon_id = &"live_coal"
+display_name = "LIVE COAL & TONGS"
+source_note = "Isaiah 6:6 — altar fire"
+role = "Ranged purification burst"
+damage_type = &"purify"
+damage = 52.0
+range = 34.0
+radius = 4.5
+cooldown = 0.75
+glory_cost = 4.0
+tint = Color(1, 0.18, 0.02, 1)

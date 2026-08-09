@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"VOICE_OF_MANY"
+chapter = 6
+title = "Voice of Many"
+briefing = "The garden resounds with unceasing worship. Survive the convergence and receive the Host without abandoning the anchor."
+scripture_reference = "Revelation 4:8"
+objective_ids = PackedStringArray("SURVIVE_WAVES", "ESCORT_HOST", "PURIFY_ZONE")
+target_purity = 0.61
+survive_seconds = 85.0
+time_limit = 180.0
+starting_demons = 12
+enemy_budget = 23
+spawn_interval = 2.25
+fallen_trigger = 0.42
+synthetic_trigger = -1.0
+corruption_bias = 0.12
+enemy_power = 1.23
+garden_color = Color(0.065, 0.17, 0.12, 1)
+fog_color = Color(0.07, 0.06, 0.16, 1)
+accent_color = Color(0.55, 0.7, 1, 1)
