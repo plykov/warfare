@@ -22,6 +22,7 @@ var _threat_timer: float = 0.0
 var _player: ArielController
 var _mission: MissionResource = preload("res://missions/data/mission_01.tres")
 var _environment: Environment
+var _sky_material: ProceduralSkyMaterial
 var _mission_fog_color: Color = Color(0.08, 0.1, 0.11)
 var _encounter_intensity: float = 0.0
 var _last_wave: int = 0
@@ -86,13 +87,22 @@ func _process(delta: float) -> void:
 func _build_environment() -> void:
 	var world_environment := WorldEnvironment.new()
 	_environment = Environment.new()
-	_environment.background_mode = Environment.BG_COLOR
-	_environment.background_color = Color(0.008, 0.012, 0.014)
+	_environment.background_mode = Environment.BG_SKY
+	_sky_material = ProceduralSkyMaterial.new()
+	_sky_material.sky_top_color = Color(0.012, 0.02, 0.035)
+	_sky_material.sky_horizon_color = Color(0.055, 0.04, 0.075)
+	_sky_material.ground_bottom_color = Color(0.008, 0.009, 0.016)
+	_sky_material.ground_horizon_color = Color(0.028, 0.026, 0.04)
+	_sky_material.sun_angle_max = 30.0
+	var sky := Sky.new()
+	sky.sky_material = _sky_material
+	_environment.sky = sky
 	_environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	_environment.ambient_light_color = Color(0.12, 0.16, 0.2)
 	_environment.ambient_light_energy = 0.82
 	_environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	_environment.fog_enabled = true
+	_environment.fog_sky_affect = 0.42
 	_environment.fog_light_color = Color(0.08, 0.1, 0.11)
 	_environment.fog_density = 0.012
 	world_environment.environment = _environment
@@ -281,6 +291,9 @@ func _on_mission_selected(_index: int, mission: Resource) -> void:
 	if _environment != null:
 		_environment.fog_light_color = mission_data.fog_color
 		_environment.ambient_light_color = mission_data.fog_color.lightened(0.28)
+	if _sky_material != null:
+		_sky_material.sky_top_color = Color(0.012, 0.02, 0.035).lerp(mission_data.fog_color.darkened(0.58), 0.34)
+		_sky_material.sky_horizon_color = Color(0.055, 0.04, 0.075).lerp(mission_data.fog_color.darkened(0.34), 0.46)
 
 func _on_restoration_feedback_changed(purity: float, _bloom_count: int, _persisted: bool) -> void:
 	if _environment == null:
@@ -289,6 +302,13 @@ func _on_restoration_feedback_changed(purity: float, _bloom_count: int, _persist
 	_environment.fog_light_color = _mission_fog_color.lerp(Color(0.16, 0.22, 0.14), purity * 0.52)
 	_environment.ambient_light_color = _mission_fog_color.lightened(0.22).lerp(Color(0.4, 0.43, 0.29), purity * 0.58)
 	_environment.ambient_light_energy = lerpf(0.72, 1.12, purity)
+	if _sky_material != null:
+		var corrupt_top: Color = Color(0.012, 0.02, 0.035).lerp(_mission_fog_color.darkened(0.58), 0.34)
+		var corrupt_horizon: Color = Color(0.055, 0.04, 0.075).lerp(_mission_fog_color.darkened(0.34), 0.46)
+		_sky_material.sky_top_color = corrupt_top.lerp(Color(0.26, 0.42, 0.7), purity * 0.84)
+		_sky_material.sky_horizon_color = corrupt_horizon.lerp(Color(0.95, 0.56, 0.2), purity * 0.9)
+		_sky_material.ground_bottom_color = Color(0.008, 0.009, 0.016).lerp(Color(0.12, 0.1, 0.065), purity * 0.72)
+		_sky_material.ground_horizon_color = Color(0.028, 0.026, 0.04).lerp(Color(0.48, 0.29, 0.12), purity * 0.84)
 
 func _on_sevenfold_granted(position: Vector3) -> void:
 	for enemy: Node in get_tree().get_nodes_in_group("enemies"):
