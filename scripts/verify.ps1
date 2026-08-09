@@ -5,9 +5,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "godot_tools.ps1")
+
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $logDirectory = Join-Path $projectRoot "build\logs"
-$godotCommand = Get-Command $Godot -ErrorAction Stop
+$godotExecutable = Resolve-GodotExecutable -Godot $Godot
 
 New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
 
@@ -41,7 +43,7 @@ foreach ($check in $checks) {
     )
 
     Write-Host ("Running {0}..." -f $check.Name)
-    $process = Start-Process -FilePath $godotCommand.Source -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+    $process = Start-Process -FilePath $godotExecutable -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
     if ($process.ExitCode -ne 0) {
         throw ("{0} failed with exit code {1}. See {2}." -f $check.Name, $process.ExitCode, $logPath)
     }

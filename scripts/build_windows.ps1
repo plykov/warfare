@@ -6,8 +6,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "godot_tools.ps1")
+
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$godotCommand = Get-Command $Godot -ErrorAction Stop
+$godotExecutable = Resolve-GodotExecutable -Godot $Godot
 $outputPath = if ([IO.Path]::IsPathRooted($Output)) {
     [IO.Path]::GetFullPath($Output)
 } else {
@@ -28,7 +30,7 @@ $arguments = @(
     '"Windows Desktop"',
     ('"{0}"' -f $outputPath)
 )
-$process = Start-Process -FilePath $godotCommand.Source -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+$process = Start-Process -FilePath $godotExecutable -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
 
 if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $outputPath)) {
     throw "Windows export failed. Install the Godot 4.4.1 export templates and inspect $logPath."
