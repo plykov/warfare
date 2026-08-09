@@ -14,6 +14,35 @@ func _ready() -> void:
 	EventBus.campaign_garden_state_loaded.connect(_on_campaign_garden_state_loaded)
 	EventBus.campaign_legacy_garden_loaded.connect(_on_campaign_legacy_garden_loaded)
 
+static func _build_blade_mesh(height: float, width: float) -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for angle: float in [0.0, PI * 0.5]:
+		var right := Vector3(cos(angle), 0.0, sin(angle)) * width * 0.5
+		var facing := Vector3(-sin(angle), 0.0, cos(angle))
+		var bend := facing * width * 0.32
+		var base_a := -right
+		var base_b := right
+		var tip_a := -right * 0.15 + bend + Vector3.UP * height
+		var tip_b := right * 0.15 + bend + Vector3.UP * height
+
+		surface.set_normal(facing)
+		surface.add_vertex(base_a)
+		surface.add_vertex(base_b)
+		surface.add_vertex(tip_b)
+		surface.add_vertex(base_a)
+		surface.add_vertex(tip_b)
+		surface.add_vertex(tip_a)
+
+		surface.set_normal(-facing)
+		surface.add_vertex(base_b)
+		surface.add_vertex(base_a)
+		surface.add_vertex(tip_a)
+		surface.add_vertex(base_b)
+		surface.add_vertex(tip_a)
+		surface.add_vertex(tip_b)
+	return surface.commit()
+
 func _build_growth_field() -> void:
 	_growth = MultiMeshInstance3D.new()
 	_growth.name = "RestorationGrowth"
@@ -21,8 +50,7 @@ func _build_growth_field() -> void:
 	_multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	_multimesh.use_colors = true
 	_multimesh.instance_count = CorruptionDirector.GRID_WIDTH * CorruptionDirector.GRID_HEIGHT
-	var blade := PrismMesh.new()
-	blade.size = Vector3(0.1, 0.48, 0.1)
+	var blade := _build_blade_mesh(0.48, 0.1)
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color.WHITE
 	material.vertex_color_use_as_albedo = true
@@ -30,7 +58,7 @@ func _build_growth_field() -> void:
 	material.emission = Color(0.018, 0.055, 0.012)
 	material.emission_energy_multiplier = 0.45
 	material.roughness = 0.92
-	blade.material = material
+	blade.surface_set_material(0, material)
 	_multimesh.mesh = blade
 	_growth.multimesh = _multimesh
 	add_child(_growth)
@@ -46,8 +74,7 @@ func _build_legacy_field() -> void:
 	_legacy_multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	_legacy_multimesh.use_colors = true
 	_legacy_multimesh.instance_count = CorruptionDirector.GRID_WIDTH * CorruptionDirector.GRID_HEIGHT
-	var flower := PrismMesh.new()
-	flower.size = Vector3(0.16, 0.76, 0.16)
+	var flower := _build_blade_mesh(0.76, 0.16)
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color.WHITE
 	material.vertex_color_use_as_albedo = true
@@ -55,7 +82,7 @@ func _build_legacy_field() -> void:
 	material.emission = Color(0.12, 0.24, 0.035)
 	material.emission_energy_multiplier = 1.1
 	material.roughness = 0.74
-	flower.material = material
+	flower.surface_set_material(0, material)
 	_legacy_multimesh.mesh = flower
 	_legacy_growth.multimesh = _legacy_multimesh
 	add_child(_legacy_growth)
