@@ -28,6 +28,7 @@ func _run() -> void:
 	_test_garden_snapshot_round_trip()
 	_test_cross_mission_restoration_legacy()
 	_test_polish_cue_profiles()
+	_test_cue_asset_mapping()
 	_test_v2_save_migration()
 	_test_rank_doctrine_profiles()
 	_test_rank_world_readability()
@@ -51,7 +52,7 @@ func _run() -> void:
 	_test_corruption_shader_globals()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 40 passed")
+		print("GARDEN RECLAIMED TESTS: 41 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -355,7 +356,21 @@ func _test_polish_cue_profiles() -> void:
 	_assert(COMBAT_FEEDBACK_SCRIPT.instance_count_for(&"restoration_burst") == 12, "Mission completion must produce a generous restoration burst")
 	_assert(COMBAT_FEEDBACK_SCRIPT.instance_count_for(&"authority_ring") == 3, "Declaration must render as a layered authority ring")
 	_assert(COMBAT_FEEDBACK_SCRIPT.instance_count_for(&"law_grid") == 4, "Legislation must visibly establish a territorial grid")
-	_assert(AudioDirector.cue_voice_layer_count(&"ariel") == 3 and AudioDirector.cue_voice_layer_count(&"intercessor") == 2, "ARIEL and the human Intercessor must have distinct procedural voice signatures")
+	_assert(AudioDirector.cue_voice_layer_count(&"ariel") == 3 and AudioDirector.cue_voice_layer_count(&"intercessor") == 2, "ARIEL and the human Intercessor must retain distinct voice cue signatures")
+
+func _test_cue_asset_mapping() -> void:
+	var cue_kinds: Array[StringName] = [
+		&"hit", &"purify", &"declare", &"legislate", &"veiled",
+		&"victory", &"failure", &"intercessor", &"ariel", &"prayer",
+		&"deflect", &"denied", &"host_return", &"synthetic_ricochet", &"legacy_garden",
+	]
+	var paths: Dictionary = {}
+	for kind: StringName in cue_kinds:
+		var stream := AudioDirector.cue_stream_for(kind)
+		_assert(stream != null, "Cue %s must map to an imported one-shot stream" % kind)
+		if stream != null:
+			paths[stream.resource_path] = true
+	_assert(paths.size() == cue_kinds.size(), "Every named cue must have a distinct sourced audio asset")
 
 func _test_v2_save_migration() -> void:
 	GameState._reset_for_test()
