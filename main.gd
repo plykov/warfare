@@ -51,6 +51,9 @@ func _ready() -> void:
 	EventBus.debug_spawn_requested.connect(_on_debug_spawn_requested)
 	EventBus.hostile_projectile_requested.connect(_on_hostile_projectile_requested)
 	EventBus.slippery_field_requested.connect(_on_slippery_field_requested)
+	EventBus.prayer_started.connect(_on_prayer_started)
+	EventBus.declaration_issued.connect(_on_declaration_issued)
+	EventBus.law_enacted.connect(_on_law_enacted)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -269,6 +272,7 @@ func _on_corruption_changed(values: PackedFloat32Array, _width: int, _height: in
 
 func _on_mission_completed() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	EventBus.combat_feedback.emit(&"restoration_burst", Vector3.ZERO, Color(0.42, 1.0, 0.22), 10.0)
 	EventBus.message_posted.emit("THE GARDEN HOLDS // COMMISSION FULFILLED", &"holy")
 
 func _on_mission_failed(_reason: String) -> void:
@@ -326,6 +330,17 @@ func _on_host_requested(position: Vector3) -> void:
 		member.position = position + Vector3(cos(TAU * i / float(formation_size)) * ring_radius, 1.0, sin(TAU * i / float(formation_size)) * ring_radius)
 		add_child(member)
 	EventBus.host_arrived.emit()
+
+func _on_prayer_started() -> void:
+	if _player != null:
+		EventBus.combat_feedback.emit(&"prayer_column", _player.global_position, Color(0.55, 0.72, 1.0), 4.5)
+
+func _on_declaration_issued(_token_id: StringName, _duration: float) -> void:
+	if _player != null:
+		EventBus.combat_feedback.emit(&"authority_ring", _player.global_position, Color(1.0, 0.76, 0.2), 4.0)
+
+func _on_law_enacted(_zone_id: StringName, _law_id: StringName) -> void:
+	EventBus.combat_feedback.emit(&"law_grid", Vector3.ZERO, Color(0.35, 0.82, 1.0), 3.2)
 
 func _reset_run() -> void:
 	GameState.return_to_title()

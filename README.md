@@ -4,6 +4,14 @@ A playable Godot 4.4 campaign slice of a Quake-style territorial FPS where death
 
 You are **ARIEL**, a Seraph-class servant-warrior. Incoming damage drains Glory instead of health. At zero Glory ARIEL becomes **Veiled**: slower, dimmed, and unable to purify the garden. Corruption keeps spreading, and the mission fails only if it reclaims the Thin Place at the garden's heart.
 
+## v0.7.0 — The Full Commission
+
+- Missions 02–08 now have an explicit data-only completion contract covering every objective primitive, authored briefing, scripture reference, palette, corruption layout, and voice timeline.
+- Final-commission tuning guarantees the expert balance profile can meet every authored purity target while keeping the last two commissions sharply demanding for novice and skilled profiles.
+- Prayer, declaration, legislation, and mission victory gain distinct world-space authority VFX with reduced-flash support.
+- ARIEL and the human Intercessor now have separate three-layer and two-layer procedural voice signatures with speaker-aware subtitle timing.
+- CI runs 35 deterministic tests plus full gameplay, campaign, balance, exported-executable, and Windows package verification.
+
 ## v0.6.0 — Ranks, Matter, and Memory
 
 - All eight ranks now have a monotonically widening world silhouette; One of the Seven manifests a cloud mantle, rainbow crown, fire pillars, and a seven-member Host formation.

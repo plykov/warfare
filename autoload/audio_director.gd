@@ -5,6 +5,7 @@ var _playback: AudioStreamGeneratorPlayback
 var _phase: float = 0.0
 var _remaining: float = 0.0
 var _frequency: float = 220.0
+var _cue_kind: StringName = &""
 var _ambient_phase: float = 0.0
 var _legacy_phase: float = 0.0
 var _nature_phase: float = 0.0
@@ -18,6 +19,8 @@ func _ready() -> void:
 	EventBus.settings_changed.connect(_on_settings_changed)
 	EventBus.corruption_field_changed.connect(_on_corruption_field_changed)
 	EventBus.restoration_legacy_changed.connect(_on_restoration_legacy_changed)
+	EventBus.ariel_spoke.connect(func(_text: String) -> void: play_cue(&"ariel"))
+	EventBus.prayer_started.connect(func() -> void: play_cue(&"prayer"))
 	EventBus.entered_veiled.connect(func() -> void: _veiled = true)
 	EventBus.exited_veiled.connect(func() -> void: _veiled = false)
 	# Godot 4.4 retains AudioStreamGeneratorPlayback until shutdown in headless
@@ -40,6 +43,7 @@ func _on_settings_changed(values: Dictionary) -> void:
 		_player.volume_db = linear_to_db(maxf(volume, 0.0001))
 
 func play_cue(kind: StringName) -> void:
+	_cue_kind = kind
 	match kind:
 		&"hit": _frequency = 140.0; _remaining = 0.08
 		&"purify": _frequency = 520.0; _remaining = 0.12
@@ -49,6 +53,8 @@ func play_cue(kind: StringName) -> void:
 		&"victory": _frequency = 880.0; _remaining = 1.0
 		&"failure": _frequency = 62.0; _remaining = 1.0
 		&"intercessor": _frequency = 610.0; _remaining = 0.45
+		&"ariel": _frequency = 240.0; _remaining = 0.62
+		&"prayer": _frequency = 330.0; _remaining = 0.48
 		&"deflect": _frequency = 1180.0; _remaining = 0.18
 		&"denied": _frequency = 92.0; _remaining = 0.42
 		&"host_return": _frequency = 920.0; _remaining = 0.75
@@ -69,7 +75,13 @@ func _process(delta: float) -> void:
 		var bird_envelope: float = pow(maxf(0.0, sin(_nature_phase * TAU)), 18.0)
 		_bird_phase = fmod(_bird_phase + (1180.0 + bird_envelope * 720.0) / 22050.0, 1.0)
 		var envelope: float = clampf(_remaining * 4.0, 0.0, 1.0)
-		var cue: float = sin(_phase * TAU) * 0.08 * envelope
+		var cue_wave: float = sin(_phase * TAU)
+		match _cue_kind:
+			&"intercessor": cue_wave = sin(_phase * TAU) * 0.72 + sin(_phase * TAU * 1.5) * 0.28
+			&"ariel": cue_wave = sin(_phase * TAU) * 0.56 + sin(_phase * TAU * 1.25) * 0.27 + sin(_phase * TAU * 1.5) * 0.17
+			&"prayer": cue_wave = sin(_phase * TAU) * (0.68 + sin(_ambient_phase * TAU * 0.25) * 0.22)
+			&"declare", &"legislate": cue_wave = sin(_phase * TAU) * 0.62 + sin(_phase * TAU * 2.0) * 0.24
+		var cue: float = cue_wave * 0.08 * envelope
 		var ambient_level: float = (0.0015 if _veiled else lerpf(0.003, 0.012, _purity))
 		var harmonic: float = sin(_ambient_phase * TAU) + sin(_ambient_phase * TAU * (1.5 + _purity * 0.5)) * _purity * 0.45
 		var legacy_chord: float = (sin(_legacy_phase * TAU) + sin(_legacy_phase * TAU * 1.25) * 0.55 + sin(_legacy_phase * TAU * 1.5) * 0.38) * _legacy_strength
@@ -86,6 +98,13 @@ func _on_corruption_field_changed(_values: PackedFloat32Array, _width: int, _hei
 static func restoration_stem_gain(source_count: int, mean_purity: float) -> float:
 	return clampf(float(source_count) / 6.0, 0.0, 1.0) * clampf(mean_purity, 0.0, 1.0)
 
+static func cue_voice_layer_count(kind: StringName) -> int:
+	if kind == &"ariel":
+		return 3
+	if kind == &"intercessor":
+		return 2
+	return 1
+
 func _on_restoration_legacy_changed(source_count: int, _bloom_count: int, mean_purity: float) -> void:
 	_legacy_strength = restoration_stem_gain(source_count, mean_purity)
 	if source_count > 0:
@@ -93,6 +112,7 @@ func _on_restoration_legacy_changed(source_count: int, _bloom_count: int, mean_p
 
 func _reset_for_test() -> void:
 	_remaining = 0.0
+	_cue_kind = &""
 	_legacy_strength = 0.0
 
 func shutdown() -> void:

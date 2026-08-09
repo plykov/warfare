@@ -20,6 +20,10 @@ func _run() -> void:
 			push_error("Player competence must produce a monotonic restoration outcome in commission %d" % mission.chapter)
 			get_tree().quit(1)
 			return
+		if float(expert.purity) < mission.target_purity:
+			push_error("Expert profile must be able to meet commission %d purity target" % mission.chapter)
+			get_tree().quit(1)
+			return
 		novice_total += float(novice.purity)
 		skilled_total += float(skilled.purity)
 		expert_total += float(expert.purity)

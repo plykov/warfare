@@ -432,7 +432,7 @@ func _connect_signals() -> void:
 	EventBus.exited_veiled.connect(_on_radiant)
 	EventBus.rank_changed.connect(func(_index: int, name: String) -> void: state_label.text = "%s // RADIANT" % name)
 	EventBus.rank_profile_changed.connect(_on_rank_profile_changed)
-	EventBus.ariel_spoke.connect(func(text: String) -> void: _post_message("ARIEL // %s" % text, &"holy"))
+	EventBus.ariel_spoke.connect(_on_ariel_spoke)
 	EventBus.debug_console_toggled.connect(_on_debug_console_toggled)
 	EventBus.debug_output.connect(_on_debug_output)
 	EventBus.player_moved.connect(func(speed: float) -> void: speed_label.text = "VELOCITY %03d // STRAFE-JUMP UNCAPPED" % roundi(speed * 10.0))
@@ -559,6 +559,11 @@ func _on_law_selection_changed(_index: int, _law_id: StringName, label: String, 
 
 func _on_intercessor_spoke(text: String) -> void:
 	_post_message("INTERCESSOR // %s" % text.to_upper(), &"holy")
+	_message_time = 5.2
+
+func _on_ariel_spoke(text: String) -> void:
+	_post_message("ARIEL // %s" % text.to_upper(), &"holy")
+	_message_time = 4.8
 
 func _on_veiled() -> void:
 	veil_overlay.color = Color(0.03, 0.01, 0.045, 0.66)

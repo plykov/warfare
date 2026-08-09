@@ -10,7 +10,13 @@ func _ready() -> void:
 	_capture("res://artifacts/title.png")
 	GameState.start_game()
 	# Run past the first authored Intercessor cue so capture QA covers timeline presentation.
-	for _frame: int in range(270):
+	for frame: int in range(270):
+		if frame == 260:
+			IntercessorSystem.start_prayer()
+		if frame == 265:
+			IntercessorSystem.declare()
+		if frame == 267:
+			IntercessorSystem.legislate(&"GARDEN", &"GROUND_HOLDS")
 		await get_tree().process_frame
 	_capture("res://artifacts/gameplay.png")
 	print("GARDEN RECLAIMED CAPTURE: title and gameplay rendered")
