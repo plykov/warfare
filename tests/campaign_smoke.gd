@@ -36,6 +36,13 @@ func _ready() -> void:
 			for enemy: Node in get_tree().get_nodes_in_group("enemies"):
 				if enemy is TerritorialPrince:
 					EventBus.damage_requested.emit(enemy, 600.0, &"kinetic", (enemy as Node3D).global_position)
+					# TerritorialPrince.phase only advances inside its own
+					# _physics_process(), which runs on the engine's independent
+					# physics schedule - decoupled from this idle-frame loop, and
+					# not guaranteed to fire again before the loop ends. Force one
+					# synchronous update so the phase check below isn't a second
+					# timing race layered on top of the boss-spawn one above.
+					(enemy as TerritorialPrince)._physics_process(0.0)
 		await get_tree().process_frame
 	if RankSystem.rank_index != 7:
 		push_error("Final commission must manifest ONE OF THE SEVEN")
