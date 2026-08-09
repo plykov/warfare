@@ -5,6 +5,13 @@
 [resource]
 script = ExtResource("1")
 mission_id = &"ALTAR_FIRE"
+corruption_pattern = "ALTAR_RING"
+corruption_seed = 505
+intercessor_cue_times = PackedFloat32Array(4, 24, 55)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "LEGISLATE")
+intercessor_cue_arguments = PackedStringArray("", "", "GROUND_HOLDS")
+intercessor_cue_durations = PackedFloat32Array(0, 8, 0)
+intercessor_cue_lines = PackedStringArray("The idol is fabricated. Purification will not move what has no life.", "The prayers are gathered. Cast the censer when the vessel is full.", "The altar court is established; what is cleansed here will hold.")
 chapter = 5
 title = "Altar Fire"
 briefing = "ARIEL manifests in Seraph fire. Purification is abundant—but the fabricated idol has no spirit to cleanse."

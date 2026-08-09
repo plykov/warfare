@@ -9,7 +9,8 @@ func _ready() -> void:
 		await get_tree().process_frame
 	_capture("res://artifacts/title.png")
 	GameState.start_game()
-	for _frame: int in range(90):
+	# Run past the first authored Intercessor cue so capture QA covers timeline presentation.
+	for _frame: int in range(270):
 		await get_tree().process_frame
 	_capture("res://artifacts/gameplay.png")
 	print("GARDEN RECLAIMED CAPTURE: title and gameplay rendered")

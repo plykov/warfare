@@ -5,6 +5,13 @@
 [resource]
 script = ExtResource("1")
 mission_id = &"PRINCES_DELAY"
+corruption_pattern = "TWIN_FRONTS"
+corruption_seed = 303
+intercessor_cue_times = PackedFloat32Array(4, 30, 58, 90)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "DECLARE", "PRAY")
+intercessor_cue_arguments = PackedStringArray("", "", "", "")
+intercessor_cue_durations = PackedFloat32Array(0, 6, 0, 8)
+intercessor_cue_lines = PackedStringArray("The prince delays the answer, but it does not silence it.", "Stand fast. Help is moving though you cannot yet see it.", "The word has crossed the delay. Speak it without presumption.", "The Host draws near; keep the center open.")
 chapter = 3
 title = "The Prince's Delay"
 briefing = "A territorial power delays the commission. Hold the ground until prayer opens a path for the Host."

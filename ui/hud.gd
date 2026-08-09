@@ -26,6 +26,7 @@ var mission_select_label: Label
 var begin_button: Button
 var objective_title: Label
 var objectives_label: Label
+var objective_panel: PanelContainer
 var weapon_context_label: Label
 var encounter_label: Label
 var boss_panel: PanelContainer
@@ -175,7 +176,7 @@ func _build_gameplay() -> void:
 	veil_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	gameplay.add_child(veil_overlay)
 
-	var objective_panel := PanelContainer.new()
+	objective_panel = PanelContainer.new()
 	objective_panel.position = Vector2(500, 26)
 	objective_panel.size = Vector2(600, 175)
 	objective_panel.add_theme_stylebox_override("panel", _box(INK, GOLD, 1))
@@ -258,6 +259,8 @@ func _build_gameplay() -> void:
 	message_label.position = Vector2(390, 218)
 	message_label.size = Vector2(820, 50)
 	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	message_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	gameplay.add_child(message_label)
 
 	var cross_h := ColorRect.new()
@@ -424,6 +427,7 @@ func _connect_signals() -> void:
 	EventBus.settings_changed.connect(_on_settings_changed)
 	EventBus.commission_state_changed.connect(_on_commission_changed)
 	EventBus.law_selection_changed.connect(_on_law_selection_changed)
+	EventBus.intercessor_spoke.connect(_on_intercessor_spoke)
 	EventBus.entered_veiled.connect(_on_veiled)
 	EventBus.exited_veiled.connect(_on_radiant)
 	EventBus.rank_changed.connect(func(_index: int, name: String) -> void: state_label.text = "%s // RADIANT" % name)
@@ -530,6 +534,9 @@ func _on_objective_state_changed(labels: PackedStringArray, completed: PackedByt
 		var mark: String = "✓" if i < completed.size() and completed[i] == 1 else "◇"
 		lines.append("%s %s" % [mark, labels[i]])
 	objectives_label.text = "\n".join(lines)
+	if objective_panel != null and message_label != null:
+		objective_panel.size.y = maxf(175.0, 105.0 + labels.size() * 22.0)
+		message_label.position.y = objective_panel.position.y + objective_panel.size.y + 16.0
 
 func _on_thin_place_changed(value: float, state: StringName) -> void:
 	_set_bar(thin_place_bar, value, 100.0)
@@ -549,6 +556,9 @@ func _on_commission_changed(active: bool, remaining: float) -> void:
 
 func _on_law_selection_changed(_index: int, _law_id: StringName, label: String, description: String, cost: float) -> void:
 	law_label.text = "LAW [Z/C] // %s // %dF\n%s" % [label, roundi(cost), description.to_upper()]
+
+func _on_intercessor_spoke(text: String) -> void:
+	_post_message("INTERCESSOR // %s" % text.to_upper(), &"holy")
 
 func _on_veiled() -> void:
 	veil_overlay.color = Color(0.03, 0.01, 0.045, 0.66)

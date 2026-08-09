@@ -5,6 +5,13 @@
 [resource]
 script = ExtResource("1")
 mission_id = &"THE_REBUKE"
+corruption_pattern = "SHATTERED"
+corruption_seed = 404
+intercessor_cue_times = PackedFloat32Array(4, 18, 40)
+intercessor_cue_actions = PackedStringArray("VOICE", "DECLARE", "PRAY")
+intercessor_cue_arguments = PackedStringArray("", "", "")
+intercessor_cue_durations = PackedFloat32Array(0, 0, 7)
+intercessor_cue_lines = PackedStringArray("Do not answer the Fallen with your own accusation.", "The Lord rebuke you. The chain may now take hold.", "I remain at prayer; finish the binding.")
 chapter = 4
 title = "The Rebuke"
 briefing = "A Fallen mirror walks the garden. Personal strength cannot move it. Receive the Word, rebuke, and bind."

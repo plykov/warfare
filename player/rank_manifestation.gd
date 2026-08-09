@@ -7,9 +7,12 @@ var _rank: int = 0
 var _body_material: StandardMaterial3D
 var _fire_material: StandardMaterial3D
 var _eye_material: StandardMaterial3D
+var _veiled: bool = false
 
 func _ready() -> void:
 	EventBus.rank_changed.connect(_on_rank_changed)
+	EventBus.entered_veiled.connect(func() -> void: _veiled = true; _rebuild(_rank))
+	EventBus.exited_veiled.connect(func() -> void: _veiled = false; _rebuild(_rank))
 	_rebuild(RankSystem.rank_index)
 
 func _process(delta: float) -> void:
@@ -58,6 +61,14 @@ func _build_materials() -> void:
 	_eye_material.emission_enabled = true
 	_eye_material.emission = Color(1.0, 0.42, 0.03)
 	_eye_material.emission_energy_multiplier = 3.5
+	if _veiled:
+		_body_material.albedo_color = Color(0.08, 0.075, 0.11)
+		_body_material.metallic = 0.05
+		_fire_material.albedo_color = Color(0.12, 0.025, 0.18)
+		_fire_material.emission = Color(0.08, 0.01, 0.12)
+		_fire_material.emission_energy_multiplier = 0.15
+		_eye_material.emission = Color(0.14, 0.02, 0.2)
+		_eye_material.emission_energy_multiplier = 0.3
 
 func _add_body() -> void:
 	var body := MeshInstance3D.new()

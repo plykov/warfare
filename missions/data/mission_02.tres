@@ -5,6 +5,13 @@
 [resource]
 script = ExtResource("1")
 mission_id = &"WATCHERS_VIGIL"
+corruption_pattern = "EAST_BREACH"
+corruption_seed = 202
+intercessor_cue_times = PackedFloat32Array(4, 24, 52)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "LEGISLATE")
+intercessor_cue_arguments = PackedStringArray("", "", "GROUND_HOLDS")
+intercessor_cue_durations = PackedFloat32Array(0, 7, 0)
+intercessor_cue_lines = PackedStringArray("Watcher, the eastern breach is moving toward the Thin Place.", "I will sustain the watch. Advance while the prayer holds.", "Let the ground already reclaimed remain held.")
 chapter = 2
 title = "The Watcher's Vigil"
 briefing = "The eastern gate flickers. Restore the Thin Place while the patrol host searches for the source of the breach."

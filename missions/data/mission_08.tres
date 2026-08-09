@@ -5,6 +5,13 @@
 [resource]
 script = ExtResource("1")
 mission_id = &"THE_SEVENTH_STANDS"
+corruption_pattern = "SIEGE"
+corruption_seed = 808
+intercessor_cue_times = PackedFloat32Array(4, 30, 70, 120)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "DECLARE", "LEGISLATE")
+intercessor_cue_arguments = PackedStringArray("", "", "", "GROUND_HOLDS")
+intercessor_cue_durations = PackedFloat32Array(0, 10, 0, 0)
+intercessor_cue_lines = PackedStringArray("One of the Seven stands by commission, not by possession.", "The prayers are before the throne. Receive strength and remain a servant.", "The final word is given. Spend it only where judgment requires.", "The siege may move, but the reclaimed ground will not answer it.")
 chapter = 8
 title = "The Seventh Stands"
 briefing = "Sea and land darken under one tide. Hold every verb together: reclaim, restore, receive, rebuke, bind, and break."

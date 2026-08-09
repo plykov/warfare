@@ -5,6 +5,13 @@
 [resource]
 script = ExtResource("1")
 mission_id = &"WAR_IN_HEAVEN"
+corruption_pattern = "CROSSFIRE"
+corruption_seed = 707
+intercessor_cue_times = PackedFloat32Array(4, 22, 55, 90)
+intercessor_cue_actions = PackedStringArray("VOICE", "DECLARE", "LEGISLATE", "PRAY")
+intercessor_cue_arguments = PackedStringArray("", "", "NO_HIDDEN_THING", "")
+intercessor_cue_durations = PackedFloat32Array(0, 0, 0, 9)
+intercessor_cue_lines = PackedStringArray("The mirror host is visible only where truth has opened the eyes.", "The word is given against the accuser's servants.", "Nothing fallen will remain hidden in this garden.", "Hold the line. Prayer is still ascending through the war.")
 chapter = 7
 title = "War in Heaven"
 briefing = "Mirror and idol advance together. Restore what was severed, bind the Fallen, and command the loadout in full."
