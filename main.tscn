@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3 uid="uid://dm41lqnlr737f"]
+[gd_scene load_steps=6 format=3 uid="uid://dm41lqnlr737f"]
 
 [ext_resource type="Script" uid="uid://c8qle8uj3q2g2" path="res://main.gd" id="1"]
 [ext_resource type="Script" uid="uid://dd1gp8yynawos" path="res://ui/hud.gd" id="2"]
 [ext_resource type="Script" path="res://world/chapter_landmark.gd" id="3"]
 [ext_resource type="Script" path="res://world/combat_feedback.gd" id="4"]
+[ext_resource type="Script" path="res://world/restoration_director.gd" id="5"]
 
 [node name="GardenReclaimed" type="Node3D"]
 script = ExtResource("1")
@@ -17,3 +18,6 @@ script = ExtResource("3")
 
 [node name="CombatFeedback" type="Node3D" parent="."]
 script = ExtResource("4")
+
+[node name="RestorationDirector" type="Node3D" parent="."]
+script = ExtResource("5")

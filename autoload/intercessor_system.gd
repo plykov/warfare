@@ -15,10 +15,17 @@ var is_praying: bool = false
 var tokens: Dictionary = {}
 var zone_laws: Dictionary = {}
 var _host_cooldown: float = 0.0
+var _rank_index: int = 0
 
 func _ready() -> void:
 	EventBus.game_started.connect(_on_game_started)
 	EventBus.threat_density_changed.connect(_on_threat_density_changed)
+	EventBus.campaign_snapshot_requested.connect(_on_campaign_snapshot_requested)
+	EventBus.campaign_garden_state_loaded.connect(_on_campaign_garden_state_loaded)
+	EventBus.rank_profile_changed.connect(_on_rank_profile_changed)
+	EventBus.sevenfold_requested.connect(_on_sevenfold_requested)
+	EventBus.fervency_override_requested.connect(_on_fervency_override_requested)
+	EventBus.token_grant_requested.connect(_on_token_grant_requested)
 
 func _process(delta: float) -> void:
 	if not GameState.is_playing():
@@ -100,12 +107,47 @@ func _on_game_started() -> void:
 	EventBus.fervency_changed.emit(fervency, MAX_FERVENCY)
 
 func _on_threat_density_changed(value: float, position: Vector3) -> void:
-	if value < 11.0 or not is_praying or fervency < HOST_COST or _host_cooldown > 0.0 or not GameState.is_playing():
+	var threshold: float = 8.0 if _rank_index >= 6 else 11.0
+	var cost: float = HOST_COST * (0.72 if _rank_index >= 6 else 1.0)
+	if value < threshold or not is_praying or fervency < cost or _host_cooldown > 0.0 or not GameState.is_playing():
 		return
-	fervency -= HOST_COST
+	fervency -= cost
 	_host_cooldown = HOST_COOLDOWN
 	EventBus.host_requested.emit(position)
 	EventBus.message_posted.emit("PRAYER ANSWERED // THE HOST DRAWS NEAR", &"holy")
+
+func _on_campaign_snapshot_requested(mission_index: int) -> void:
+	EventBus.laws_snapshot_ready.emit(mission_index, zone_laws.duplicate(true))
+
+func _on_campaign_garden_state_loaded(_mission_index: int, state: Dictionary) -> void:
+	zone_laws.clear()
+	var stored: Variant = state.get("laws", {})
+	if stored is Dictionary:
+		zone_laws = (stored as Dictionary).duplicate(true)
+
+func _on_rank_profile_changed(index: int, _name: String, _tier: int, _doctrine: String, _passive: String, _power: float, _resistance: float) -> void:
+	_rank_index = index
+
+func _on_sevenfold_requested(position: Vector3) -> void:
+	if _rank_index < 7:
+		EventBus.sevenfold_denied.emit("RANK INSUFFICIENT")
+		return
+	if not consume_commission():
+		EventBus.sevenfold_denied.emit("COMMISSION TOKEN REQUIRED")
+		EventBus.weapon_denied.emit("Commission required for Sevenfold Judgment")
+		EventBus.message_posted.emit("SEVENTHFOLD DENIED // DECLARE THE WORD", &"danger")
+		return
+	EventBus.sevenfold_granted.emit(position)
+	EventBus.message_posted.emit("SEVENTH JUDGMENT // THE WORD IS FULFILLED", &"holy")
+	EventBus.audio_requested.emit(&"victory")
+
+func _on_fervency_override_requested(value: float) -> void:
+	fervency = clampf(value, 0.0, MAX_FERVENCY)
+	EventBus.fervency_changed.emit(fervency, MAX_FERVENCY)
+
+func _on_token_grant_requested() -> void:
+	tokens[&"REBuke"] = TOKEN_DURATION
+	EventBus.declaration_issued.emit(&"REBuke", TOKEN_DURATION)
 
 func _reset_for_test() -> void:
 	fervency = MAX_FERVENCY

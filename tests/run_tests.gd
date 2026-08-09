@@ -22,9 +22,14 @@ func _run() -> void:
 	_test_weapon_identity_catalog()
 	_test_boss_catalog()
 	_test_pause_lifecycle()
+	_test_garden_snapshot_round_trip()
+	_test_v2_save_migration()
+	_test_rank_doctrine_profiles()
+	_test_debug_console_commands()
+	_test_sevenfold_authority_gate()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 15 passed")
+		print("GARDEN RECLAIMED TESTS: 20 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -175,6 +180,74 @@ func _test_pause_lifecycle() -> void:
 	GameState.set_paused(false)
 	_assert(not GameState.paused and not get_tree().paused, "Resume must restore the active commission")
 	GameState._reset_for_test()
+
+func _test_garden_snapshot_round_trip() -> void:
+	GameState._reset_for_test()
+	IntercessorSystem._reset_for_test()
+	CorruptionDirector._reset_for_test()
+	GameState.phase = GameState.Phase.PLAYING
+	CorruptionDirector.corrupt(Vector3(4.0, 0.0, 4.0), 3.0, 0.44)
+	var before: float = CorruptionDirector.sample(Vector3(4.0, 0.0, 4.0))
+	_assert(IntercessorSystem.legislate(&"GARDEN", &"GROUND_HOLDS"), "A funded campaign law must enact before snapshotting")
+	GameState._capture_garden_state()
+	var state: Dictionary = GameState.garden_states.get("0", {})
+	_assert((state.get("cells", []) as Array).size() == CorruptionDirector.GRID_WIDTH * CorruptionDirector.GRID_HEIGHT, "Garden snapshots must retain every corruption cell")
+	_assert((state.get("laws", {}) as Dictionary).has(&"GARDEN"), "Garden snapshots must retain enacted territorial laws")
+	CorruptionDirector.purify(Vector3(4.0, 0.0, 4.0), 3.0, 1.0)
+	EventBus.campaign_garden_state_loaded.emit(0, state)
+	_assert(is_equal_approx(CorruptionDirector.sample(Vector3(4.0, 0.0, 4.0)), before), "Loading a garden snapshot must restore exact local corruption")
+	var encoded: String = JSON.stringify({"save_version": 3, "selected_mission": 0, "unlocked_count": 1, "completed": [], "garden_states": GameState.garden_states})
+	var decoded: Variant = JSON.parse_string(encoded)
+	GameState.garden_states.clear()
+	GameState._apply_progress_data(decoded as Dictionary)
+	_assert(((GameState.garden_states["0"] as Dictionary).get("cells", []) as Array).size() == CorruptionDirector.GRID_WIDTH * CorruptionDirector.GRID_HEIGHT, "Garden snapshots must survive the JSON save boundary")
+	GameState._reset_for_test()
+	IntercessorSystem._reset_for_test()
+
+func _test_v2_save_migration() -> void:
+	GameState._reset_for_test()
+	GameState._apply_progress_data({"save_version": 2, "selected_mission": 2, "unlocked_count": 4, "completed": ["0", "1"], "mission_records": {"0": {"attempts": 2, "clears": 1}}})
+	_assert(GameState.unlocked_count == 4, "Version 2 campaign unlocks must survive schema v3 migration")
+	_assert(GameState.garden_states.is_empty(), "Version 2 saves must migrate with an empty persistent garden ledger")
+	_assert(is_zero_approx(GameState.campaign_pride), "Version 2 saves must receive the safe default Pride value")
+	GameState._reset_for_test()
+
+func _test_rank_doctrine_profiles() -> void:
+	EventBus.rank_override_requested.emit(0)
+	_assert(RankSystem.weapon_tier() == 1, "Messenger must begin at weapon tier 1")
+	EventBus.rank_override_requested.emit(3)
+	_assert(RankSystem.weapon_tier() == 2 and RankSystem.has_ophanim_dash(), "Cherub must manifest tier 2 weapons and Ophanim motion")
+	EventBus.rank_override_requested.emit(7)
+	_assert(RankSystem.weapon_tier() == 3, "One of the Seven must manifest weapon tier 3")
+	_assert(RankSystem.damage_resistance() > 0.2, "Capstone doctrine must provide a meaningful ward")
+	RankSystem._reset_for_test()
+
+func _test_debug_console_commands() -> void:
+	GameState.phase = GameState.Phase.PLAYING
+	IntercessorSystem._reset_for_test()
+	var response: String = DebugConsole.execute("fervency 41")
+	_assert("41.0" in response and is_equal_approx(IntercessorSystem.fervency, 41.0), "Console Fervency overrides must be parsed and applied")
+	DebugConsole.execute("set_rank 6")
+	_assert(RankSystem.rank_index == 5, "Console rank commands must use the documented 1-based ladder")
+	_assert("UNKNOWN COMMAND" in DebugConsole.execute("nonsense"), "Console must report unknown commands without side effects")
+	GameState._reset_for_test()
+	RankSystem._reset_for_test()
+
+func _test_sevenfold_authority_gate() -> void:
+	GameState.phase = GameState.Phase.PLAYING
+	IntercessorSystem._reset_for_test()
+	EventBus.rank_override_requested.emit(7)
+	var granted := [false]
+	EventBus.sevenfold_granted.connect(func(_position: Vector3) -> void: granted[0] = true, CONNECT_ONE_SHOT)
+	EventBus.sevenfold_requested.emit(Vector3.ZERO)
+	_assert(not granted[0], "Sevenfold Judgment must remain locked without a Commission Token")
+	EventBus.token_grant_requested.emit()
+	EventBus.sevenfold_requested.emit(Vector3.ZERO)
+	_assert(granted[0], "One of the Seven must be able to spend a Commission Token on Sevenfold Judgment")
+	_assert(not IntercessorSystem.has_commission(), "Sevenfold Judgment must consume its Commission Token")
+	GameState._reset_for_test()
+	RankSystem._reset_for_test()
+	IntercessorSystem._reset_for_test()
 
 func _assert(condition: bool, message: String) -> void:
 	if not condition:

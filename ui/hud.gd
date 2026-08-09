@@ -35,6 +35,10 @@ var hit_marker: Label
 var pause_overlay: Control
 var restoration_label: Label
 var mission_record_label: Label
+var doctrine_label: Label
+var debug_overlay: PanelContainer
+var debug_log: Label
+var debug_input: LineEdit
 var _message_time: float = 0.0
 var _hit_time: float = 0.0
 var _subtitles_enabled: bool = true
@@ -45,6 +49,7 @@ func _ready() -> void:
 	_build_gameplay()
 	_build_end_screen()
 	_build_pause_overlay()
+	_build_debug_console()
 	_connect_signals()
 
 func _process(delta: float) -> void:
@@ -193,6 +198,9 @@ func _build_gameplay() -> void:
 	left_panel.add_child(left)
 	state_label = _label("SERAPH // RADIANT", 19, GOLD)
 	left.add_child(state_label)
+	doctrine_label = _label("TIER 1 // SENT ONE", 12, Color(0.72, 0.74, 0.7))
+	doctrine_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	left.add_child(doctrine_label)
 	left.add_child(_label("GLORY", 13, PALE))
 	glory_bar = _bar(GOLD)
 	left.add_child(glory_bar)
@@ -366,6 +374,31 @@ func _add_toggle_setting(parent: VBoxContainer, title: String, key: StringName) 
 	toggle.toggled.connect(func(value: bool) -> void: EventBus.setting_update_requested.emit(key, value))
 	parent.add_child(toggle)
 
+func _build_debug_console() -> void:
+	debug_overlay = PanelContainer.new()
+	debug_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	debug_overlay.position = Vector2(160, 100)
+	debug_overlay.size = Vector2(1280, 300)
+	debug_overlay.visible = false
+	debug_overlay.add_theme_stylebox_override("panel", _box(Color(0.01, 0.012, 0.012, 0.97), Color(0.3, 0.85, 1.0), 2))
+	add_child(debug_overlay)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 10)
+	debug_overlay.add_child(stack)
+	stack.add_child(_label("AGENT FIELD CONSOLE // TYPE help", 18, Color(0.3, 0.85, 1.0)))
+	debug_log = _label("Console ready.", 14, PALE)
+	debug_log.custom_minimum_size = Vector2(0, 150)
+	debug_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack.add_child(debug_log)
+	debug_input = LineEdit.new()
+	debug_input.placeholder_text = "set_rank 8"
+	debug_input.custom_minimum_size = Vector2(0, 46)
+	debug_input.text_submitted.connect(func(command: String) -> void:
+		EventBus.debug_command_submitted.emit(command)
+		debug_input.clear()
+	)
+	stack.add_child(debug_input)
+
 func _connect_signals() -> void:
 	EventBus.game_started.connect(_on_game_started)
 	EventBus.game_phase_changed.connect(_on_phase_changed)
@@ -385,6 +418,10 @@ func _connect_signals() -> void:
 	EventBus.entered_veiled.connect(_on_veiled)
 	EventBus.exited_veiled.connect(_on_radiant)
 	EventBus.rank_changed.connect(func(_index: int, name: String) -> void: state_label.text = "%s // RADIANT" % name)
+	EventBus.rank_profile_changed.connect(_on_rank_profile_changed)
+	EventBus.ariel_spoke.connect(func(text: String) -> void: _post_message("ARIEL // %s" % text, &"holy"))
+	EventBus.debug_console_toggled.connect(_on_debug_console_toggled)
+	EventBus.debug_output.connect(_on_debug_output)
 	EventBus.player_moved.connect(func(speed: float) -> void: speed_label.text = "VELOCITY %03d // STRAFE-JUMP UNCAPPED" % roundi(speed * 10.0))
 	EventBus.message_posted.connect(_post_message)
 	EventBus.mission_selected.connect(_on_mission_selected)
@@ -435,6 +472,9 @@ func _on_records_changed(records: Dictionary) -> void:
 	var best: float = float(record.get("best_time", 0.0))
 	var best_text: String = "--:--" if best <= 0.0 else "%02d:%02d" % [floori(best / 60.0), floori(fmod(best, 60.0))]
 	mission_record_label.text = "ATTEMPTS %d  //  CLEARS %d\nBEST TIME %s  //  BEST PURITY %d%%" % [int(record.get("attempts", 0)), int(record.get("clears", 0)), best_text, roundi(float(record.get("best_purity", 0.0)) * 100.0)]
+	var garden: Dictionary = GameState.garden_states.get(str(GameState.selected_mission), {})
+	if not garden.is_empty():
+		mission_record_label.text += "\nGARDEN MEMORY %d%% // LAWS %d" % [roundi(float(garden.get("purity", 0.0)) * 100.0), (garden.get("laws", {}) as Dictionary).size()]
 
 func _on_encounter_state_changed(wave: int, intensity: float, label: String) -> void:
 	encounter_label.text = "WAVE %02d // %s // %d%%" % [wave, label, roundi(intensity * 100.0)]
@@ -448,6 +488,18 @@ func _on_hit_confirmed(defeated: bool, _damage_type: StringName) -> void:
 	_hit_time = 0.22 if defeated else 0.12
 	hit_marker.text = "+" if defeated else "x"
 	hit_marker.add_theme_color_override("font_color", GOLD if defeated else PALE)
+
+func _on_rank_profile_changed(_index: int, _name: String, tier: int, doctrine: String, passive: String, _power: float, resistance: float) -> void:
+	doctrine_label.text = "TIER %d // %s\n%s // WARD %d%%" % [tier, doctrine, passive.to_upper(), roundi(resistance * 100.0)]
+
+func _on_debug_console_toggled(enabled: bool) -> void:
+	debug_overlay.visible = enabled
+	if enabled:
+		debug_input.grab_focus()
+
+func _on_debug_output(text: String, tone: StringName) -> void:
+	debug_log.text = text
+	debug_log.add_theme_color_override("font_color", DANGER if tone == &"danger" else (GOLD if tone == &"holy" else PALE))
 
 func _on_settings_changed(values: Dictionary) -> void:
 	_subtitles_enabled = bool(values.get(&"subtitles", true))

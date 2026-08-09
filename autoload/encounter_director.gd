@@ -26,7 +26,8 @@ func _process(delta: float) -> void:
 	intensity = clampf(0.2 + GameState.elapsed / maxf(mission.time_limit if mission.time_limit > 0.0 else 150.0, 1.0) + (1.0 - _purity) * 0.35, 0.0, 1.0)
 	if next_wave != current_wave:
 		current_wave = next_wave
-		EventBus.message_posted.emit("WAVE %02d // TERRITORIAL PRESSURE %d%%" % [current_wave, roundi(intensity * 100.0)], &"danger")
+		if current_wave > 1:
+			EventBus.message_posted.emit("WAVE %02d // TERRITORIAL PRESSURE %d%%" % [current_wave, roundi(intensity * 100.0)], &"danger")
 	EventBus.encounter_state_changed.emit(current_wave, intensity, _wave_label(current_wave))
 	if not _boss_spawned and mission.boss_kind != &"" and _boss_triggered(mission):
 		_boss_spawned = true

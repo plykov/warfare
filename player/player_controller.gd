@@ -26,6 +26,8 @@ var _mouse_sensitivity: float = 1.0
 var _screen_shake: float = 0.75
 var _shake_remaining: float = 0.0
 var _head_rest: Vector3
+var _rank_index: int = 0
+var _sight_cooldown: float = 0.0
 
 func _ready() -> void:
 	add_to_group("player")
@@ -35,6 +37,7 @@ func _ready() -> void:
 	EventBus.player_dashed.connect(_on_chariot_impulse)
 	EventBus.settings_changed.connect(_on_settings_changed)
 	EventBus.combat_feedback.connect(_on_combat_feedback)
+	EventBus.rank_profile_changed.connect(_on_rank_profile_changed)
 	_on_settings_changed(SettingsState.values)
 	_head_rest = head.position
 	camera.set_cull_mask_value(16, false)
@@ -51,6 +54,7 @@ func _physics_process(delta: float) -> void:
 	_shake_remaining = maxf(0.0, _shake_remaining - delta)
 	head.position = _head_rest + (Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), 0.0) * _shake_remaining * _screen_shake if _shake_remaining > 0.0 else Vector3.ZERO)
 	_dash_cooldown = maxf(0.0, _dash_cooldown - delta)
+	_sight_cooldown = maxf(0.0, _sight_cooldown - delta)
 	var input: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var wish_direction: Vector3 = (global_basis * Vector3(input.x, 0.0, input.y)).normalized()
 	var wish_speed: float = GROUND_SPEED * input.length() * _veiled_speed_scale
@@ -64,17 +68,24 @@ func _physics_process(delta: float) -> void:
 	else:
 		_accelerate(wish_direction, wish_speed, AIR_ACCEL, delta)
 		velocity.y -= GRAVITY * delta
-		if RankSystem.has_ascent() and Input.is_action_pressed("jump") and glory.glory > 0.0:
+		if _rank_index >= 4 and Input.is_action_pressed("jump") and glory.glory > 0.0:
 			velocity.y = move_toward(velocity.y, 7.0, 22.0 * delta)
 			glory.spend(ASCENT_GLORY_PER_SECOND * delta)
 
-	if Input.is_action_just_pressed("dash") and RankSystem.has_ophanim_dash() and _dash_cooldown <= 0.0:
+	if Input.is_action_just_pressed("dash") and _rank_index >= 3 and _dash_cooldown <= 0.0:
 		var dash_direction: Vector3 = wish_direction if wish_direction.length_squared() > 0.1 else -global_basis.z
 		velocity.x = dash_direction.x * OPHANIM_DASH_SPEED
 		velocity.z = dash_direction.z * OPHANIM_DASH_SPEED
 		_dash_cooldown = OPHANIM_DASH_COOLDOWN
 		EventBus.player_dashed.emit()
 		EventBus.audio_requested.emit(&"declare")
+	if Input.is_action_just_pressed("ultimate") and _rank_index >= 7:
+		EventBus.sevenfold_requested.emit(global_position)
+	if Input.is_action_just_pressed("reveal") and _rank_index >= 1:
+		_reveal_threats(18.0, 3.0)
+	if _rank_index >= 5 and _sight_cooldown <= 0.0:
+		_sight_cooldown = 1.0
+		_reveal_threats(9.0, 1.2)
 
 	move_and_slide()
 	if is_on_floor() and not _was_grounded:
@@ -123,3 +134,11 @@ func _on_combat_feedback(kind: StringName, position: Vector3, _tint: Color, stre
 	if kind in [&"impact", &"boss_phase", &"boss_surge"]:
 		var distance_scale: float = 1.0 / maxf(1.0, global_position.distance_to(position) * 0.18)
 		_shake_remaining = maxf(_shake_remaining, minf(0.16, strength * 0.012) * distance_scale)
+
+func _on_rank_profile_changed(index: int, _name: String, _tier: int, _doctrine: String, _passive: String, _power: float, _resistance: float) -> void:
+	_rank_index = index
+
+func _reveal_threats(radius: float, duration: float) -> void:
+	for enemy: Node in get_tree().get_nodes_in_group("enemies"):
+		if enemy is Node3D and (enemy as Node3D).global_position.distance_to(global_position) <= radius:
+			EventBus.mark_requested.emit(enemy, duration)

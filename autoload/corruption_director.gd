@@ -25,6 +25,8 @@ func _ready() -> void:
 	EventBus.law_enacted.connect(_on_law_enacted)
 	EventBus.mission_selected.connect(_on_mission_selected)
 	EventBus.restoration_state_changed.connect(_on_restoration_state_changed)
+	EventBus.campaign_snapshot_requested.connect(_on_campaign_snapshot_requested)
+	EventBus.campaign_garden_state_loaded.connect(_on_campaign_garden_state_loaded)
 
 func initialize(field_origin: Vector3 = Vector3.ZERO) -> void:
 	origin = field_origin
@@ -137,6 +139,17 @@ func _on_mission_selected(_index: int, mission: Resource) -> void:
 
 func _on_restoration_state_changed(completed_count: int) -> void:
 	_restoration_bonus = minf(0.12, completed_count * 0.018)
+
+func _on_campaign_snapshot_requested(mission_index: int) -> void:
+	EventBus.corruption_snapshot_ready.emit(mission_index, cells.duplicate(), purity())
+
+func _on_campaign_garden_state_loaded(_mission_index: int, state: Dictionary) -> void:
+	var stored_cells: Variant = state.get("cells", [])
+	if stored_cells is Array and (stored_cells as Array).size() == GRID_WIDTH * GRID_HEIGHT:
+		cells = PackedFloat32Array(stored_cells as Array)
+	var laws: Dictionary = state.get("laws", {}) as Dictionary
+	_ground_holds = &"GROUND_HOLDS" in laws.get(&"GARDEN", laws.get("GARDEN", []))
+	_emit_state()
 
 func _reset_for_test() -> void:
 	_mission_active = false
