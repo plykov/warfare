@@ -38,6 +38,8 @@ foreach ($check in $checks) {
         "--headless",
         "--log-file",
         ('"{0}"' -f $logPath),
+        "--quit-after",
+        "1200",
         $check.Scene
     )
 

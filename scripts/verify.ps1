@@ -39,6 +39,8 @@ foreach ($check in $checks) {
         ('"{0}"' -f $projectRoot),
         "--log-file",
         ('"{0}"' -f $logPath),
+        "--quit-after",
+        "1200",
         $check.Scene
     )
 
