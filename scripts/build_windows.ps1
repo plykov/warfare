@@ -18,8 +18,19 @@ $logPath = Join-Path $outputDirectory "windows-export.log"
 
 New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 
-& $godotCommand.Source --headless --path $projectRoot --log-file $logPath --export-release "Windows Desktop" $outputPath
-if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $outputPath)) {
+$arguments = @(
+    "--headless",
+    "--path",
+    ('"{0}"' -f $projectRoot),
+    "--log-file",
+    ('"{0}"' -f $logPath),
+    "--export-release",
+    '"Windows Desktop"',
+    ('"{0}"' -f $outputPath)
+)
+$process = Start-Process -FilePath $godotCommand.Source -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+
+if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $outputPath)) {
     throw "Windows export failed. Install the Godot 4.4.1 export templates and inspect $logPath."
 }
 
