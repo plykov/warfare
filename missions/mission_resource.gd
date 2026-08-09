@@ -20,6 +20,11 @@ extends Resource
 @export var synthetic_trigger: float = 0.50
 @export var corruption_bias: float = 0.0
 @export var enemy_power: float = 1.0
+@export var boss_kind: StringName = &""
+@export var boss_name: String = ""
+@export var boss_trigger_seconds: float = 0.0
+@export var boss_trigger_purity: float = 0.0
+@export var boss_power: float = 1.0
 @export var garden_color: Color = Color(0.035, 0.23, 0.075)
 @export var fog_color: Color = Color(0.08, 0.1, 0.11)
 @export var accent_color: Color = Color(1.0, 0.65, 0.18)

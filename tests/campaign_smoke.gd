@@ -12,6 +12,8 @@ func _ready() -> void:
 	GameState.start_game()
 	IntercessorSystem.start_prayer()
 	for frame: int in range(360):
+		if frame == 5:
+			GameState.elapsed = 49.0
 		if frame == 30:
 			EventBus.purification_requested.emit(Vector3.ZERO, 70.0, 0.72)
 		if frame == 120:
@@ -23,9 +25,24 @@ func _ready() -> void:
 					EventBus.bind_requested.emit(enemy, 4.0)
 				if enemy is SyntheticEnemy:
 					EventBus.damage_requested.emit(enemy, 1000.0, &"kinetic", (enemy as Node3D).global_position)
+		if frame == 220:
+			for enemy: Node in get_tree().get_nodes_in_group("enemies"):
+				if enemy is TerritorialPrince:
+					EventBus.damage_requested.emit(enemy, 600.0, &"kinetic", (enemy as Node3D).global_position)
 		await get_tree().process_frame
 	if RankSystem.rank_index != 7:
 		push_error("Final commission must manifest ONE OF THE SEVEN")
+		get_tree().quit(1)
+		return
+	var prince := get_tree().get_first_node_in_group("enemies") as EnemyBase
+	var boss_verified: bool = false
+	for enemy: Node in get_tree().get_nodes_in_group("enemies"):
+		if enemy is TerritorialPrince:
+			prince = enemy as EnemyBase
+			boss_verified = (enemy as TerritorialPrince).phase >= 2
+			break
+	if not boss_verified or prince == null:
+		push_error("Final commission must spawn and phase an Accuser boss")
 		get_tree().quit(1)
 		return
 	print("GARDEN RECLAIMED CAMPAIGN SMOKE: final commission mixed encounter ran 360 frames")

@@ -26,18 +26,36 @@ var mission_select_label: Label
 var begin_button: Button
 var objective_title: Label
 var objectives_label: Label
+var weapon_context_label: Label
+var encounter_label: Label
+var boss_panel: PanelContainer
+var boss_title: Label
+var boss_bar: ProgressBar
+var hit_marker: Label
+var pause_overlay: Control
+var restoration_label: Label
+var mission_record_label: Label
 var _message_time: float = 0.0
+var _hit_time: float = 0.0
+var _subtitles_enabled: bool = true
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_title()
 	_build_gameplay()
 	_build_end_screen()
+	_build_pause_overlay()
 	_connect_signals()
 
 func _process(delta: float) -> void:
 	_message_time = maxf(0.0, _message_time - delta)
 	if _message_time <= 0.0:
 		message_label.modulate.a = move_toward(message_label.modulate.a, 0.0, delta * 2.0)
+	_hit_time = maxf(0.0, _hit_time - delta)
+	if hit_marker != null:
+		hit_marker.modulate.a = clampf(_hit_time * 7.0, 0.0, 1.0)
+	if GameState.paused:
+		return
 	if Input.is_action_just_pressed("pray"):
 		IntercessorSystem.start_prayer()
 	if Input.is_action_just_released("pray"):
@@ -112,8 +130,28 @@ func _build_title() -> void:
 	begin_button.add_theme_stylebox_override("hover", _box(Color(1.0, 0.85, 0.48), Color.TRANSPARENT, 0))
 	begin_button.pressed.connect(GameState.start_game)
 	panel.add_child(begin_button)
+	var accessibility := Button.new()
+	accessibility.text = "ACCESSIBILITY & SETTINGS"
+	accessibility.custom_minimum_size = Vector2(330, 44)
+	accessibility.pressed.connect(func() -> void: pause_overlay.visible = true)
+	panel.add_child(accessibility)
 	var controls := _label("WASD + MOUSE  •  SPACE ASCEND  •  SHIFT DASH\nQ PRAY  •  E DECLARE  •  R LEGISLATE  •  1–0 [ ] ARMAMENTS", 15, Color(0.72, 0.72, 0.67))
 	panel.add_child(controls)
+
+	var dossier := PanelContainer.new()
+	dossier.position = Vector2(1120, 74)
+	dossier.size = Vector2(400, 245)
+	dossier.add_theme_stylebox_override("panel", _box(INK, GOLD, 1))
+	title_screen.add_child(dossier)
+	var dossier_stack := VBoxContainer.new()
+	dossier_stack.add_theme_constant_override("separation", 10)
+	dossier.add_child(dossier_stack)
+	dossier_stack.add_child(_label("RESTORATION LEDGER", 20, GOLD))
+	restoration_label = _label("GARDENS HELD 0 / 8", 17, PALE)
+	dossier_stack.add_child(restoration_label)
+	mission_record_label = _label("NO PRIOR COMMISSION RECORD", 14, Color(0.76, 0.78, 0.74))
+	mission_record_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dossier_stack.add_child(mission_record_label)
 
 func _build_gameplay() -> void:
 	gameplay = Control.new()
@@ -189,6 +227,16 @@ func _build_gameplay() -> void:
 	weapon_label.size = Vector2(420, 40)
 	weapon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	gameplay.add_child(weapon_label)
+	weapon_context_label = _label("PURIFYING MELEE // CLEAVE DEMONS", 12, Color(0.72, 0.74, 0.7))
+	weapon_context_label.position = Vector2(500, 853)
+	weapon_context_label.size = Vector2(600, 28)
+	weapon_context_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gameplay.add_child(weapon_context_label)
+
+	encounter_label = _label("WAVE 01 // BREACH", 14, DANGER)
+	encounter_label.position = Vector2(28, 28)
+	encounter_label.size = Vector2(380, 30)
+	gameplay.add_child(encounter_label)
 
 	message_label = _label("", 22, PALE)
 	message_label.position = Vector2(390, 218)
@@ -206,6 +254,28 @@ func _build_gameplay() -> void:
 	cross_v.position = Vector2(799, 442)
 	cross_v.size = Vector2(2, 16)
 	gameplay.add_child(cross_v)
+	hit_marker = _label("x", 30, PALE)
+	hit_marker.position = Vector2(778, 426)
+	hit_marker.size = Vector2(44, 44)
+	hit_marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hit_marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hit_marker.modulate.a = 0.0
+	hit_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gameplay.add_child(hit_marker)
+
+	boss_panel = PanelContainer.new()
+	boss_panel.position = Vector2(500, 575)
+	boss_panel.size = Vector2(600, 78)
+	boss_panel.visible = false
+	boss_panel.add_theme_stylebox_override("panel", _box(INK, DANGER, 2))
+	gameplay.add_child(boss_panel)
+	var boss_stack := VBoxContainer.new()
+	boss_panel.add_child(boss_stack)
+	boss_title = _label("TERRITORIAL PRINCE", 15, DANGER)
+	boss_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	boss_stack.add_child(boss_title)
+	boss_bar = _bar(DANGER)
+	boss_stack.add_child(boss_bar)
 
 func _build_end_screen() -> void:
 	end_screen = Control.new()
@@ -228,6 +298,74 @@ func _build_end_screen() -> void:
 	end_copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	end_screen.add_child(end_copy)
 
+func _build_pause_overlay() -> void:
+	pause_overlay = Control.new()
+	pause_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
+	pause_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pause_overlay.visible = false
+	add_child(pause_overlay)
+	var shade := ColorRect.new()
+	shade.color = Color(0.0, 0.0, 0.0, 0.88)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pause_overlay.add_child(shade)
+	var panel := PanelContainer.new()
+	panel.position = Vector2(500, 92)
+	panel.size = Vector2(600, 716)
+	panel.add_theme_stylebox_override("panel", _box(INK, GOLD, 2))
+	pause_overlay.add_child(panel)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 10)
+	panel.add_child(stack)
+	var heading := _label("COMMISSION SUSPENDED", 36, GOLD)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(heading)
+	var guidance := _label("Changes save immediately. Esc resumes the commission.", 14, PALE)
+	guidance.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(guidance)
+	_add_slider_setting(stack, "AIM SENSITIVITY", &"mouse_sensitivity", 0.35, 2.5, 0.05)
+	_add_slider_setting(stack, "MASTER VOLUME", &"master_volume", 0.0, 1.0, 0.05)
+	_add_slider_setting(stack, "SCREEN SHAKE", &"screen_shake", 0.0, 1.0, 0.05)
+	_add_slider_setting(stack, "UI SCALE", &"ui_scale", 0.85, 1.25, 0.05)
+	_add_toggle_setting(stack, "HIGH-CONTRAST CORRUPTION", &"high_contrast")
+	_add_toggle_setting(stack, "REDUCED FLASH", &"reduced_flash")
+	_add_toggle_setting(stack, "SUBTITLES / FIELD MESSAGES", &"subtitles")
+	var controls := _label("WASD MOVE  |  MOUSE AIM / FIRE  |  SPACE ASCEND  |  SHIFT DASH\nQ PRAY  |  E DECLARE  |  R LEGISLATE  |  F SURVEY\n1-0, [ and ] SELECT ALL TWELVE MANIFESTATIONS", 14, Color(0.76, 0.78, 0.73))
+	controls.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(controls)
+	var resume := Button.new()
+	resume.text = "RETURN"
+	resume.custom_minimum_size = Vector2(0, 50)
+	resume.pressed.connect(func() -> void:
+		if GameState.is_playing():
+			EventBus.pause_requested.emit(false)
+		else:
+			pause_overlay.visible = false
+	)
+	stack.add_child(resume)
+
+func _add_slider_setting(parent: VBoxContainer, title: String, key: StringName, minimum: float, maximum: float, step: float) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	parent.add_child(row)
+	var label := _label(title, 15, PALE)
+	label.custom_minimum_size = Vector2(250, 36)
+	row.add_child(label)
+	var slider := HSlider.new()
+	slider.custom_minimum_size = Vector2(280, 36)
+	slider.min_value = minimum
+	slider.max_value = maximum
+	slider.step = step
+	slider.value = float(SettingsState.get_value(key))
+	slider.value_changed.connect(func(value: float) -> void: EventBus.setting_update_requested.emit(key, value))
+	row.add_child(slider)
+
+func _add_toggle_setting(parent: VBoxContainer, title: String, key: StringName) -> void:
+	var toggle := CheckButton.new()
+	toggle.text = title
+	toggle.button_pressed = bool(SettingsState.get_value(key))
+	toggle.toggled.connect(func(value: bool) -> void: EventBus.setting_update_requested.emit(key, value))
+	parent.add_child(toggle)
+
 func _connect_signals() -> void:
 	EventBus.game_started.connect(_on_game_started)
 	EventBus.game_phase_changed.connect(_on_phase_changed)
@@ -237,6 +375,12 @@ func _connect_signals() -> void:
 	EventBus.thin_place_changed.connect(_on_thin_place_changed)
 	EventBus.mission_progress_changed.connect(_on_progress_changed)
 	EventBus.weapon_switched.connect(func(index: int, name: String) -> void: weapon_label.text = "%02d // %s" % [index + 1, name])
+	EventBus.weapon_context_changed.connect(func(role: String, counterplay: String) -> void: weapon_context_label.text = "%s // %s" % [role.to_upper(), counterplay.to_upper()])
+	EventBus.hit_confirmed.connect(_on_hit_confirmed)
+	EventBus.encounter_state_changed.connect(_on_encounter_state_changed)
+	EventBus.boss_state_changed.connect(_on_boss_state_changed)
+	EventBus.pause_changed.connect(func(paused: bool) -> void: pause_overlay.visible = paused)
+	EventBus.settings_changed.connect(_on_settings_changed)
 	EventBus.commission_state_changed.connect(_on_commission_changed)
 	EventBus.entered_veiled.connect(_on_veiled)
 	EventBus.exited_veiled.connect(_on_radiant)
@@ -246,7 +390,9 @@ func _connect_signals() -> void:
 	EventBus.mission_selected.connect(_on_mission_selected)
 	EventBus.objective_state_changed.connect(_on_objective_state_changed)
 	EventBus.campaign_changed.connect(_on_campaign_changed)
+	EventBus.campaign_records_changed.connect(_on_records_changed)
 	_on_campaign_changed(GameState.selected_mission, GameState.unlocked_count, GameState.completed)
+	_on_settings_changed(SettingsState.values)
 
 func _on_game_started() -> void:
 	title_screen.visible = false
@@ -265,6 +411,8 @@ func _show_end(success: bool) -> void:
 	end_title.add_theme_color_override("font_color", GOLD if success else DANGER)
 	end_copy.text = ("ARIEL remains. The ground remembers.\nThe next commission is now available.\n\nPRESS ENTER TO RETURN TO CAMPAIGN" if success else "ARIEL remains alive, but the objective is lost.\nThere is no respawn — only ground to reclaim.\n\nPRESS ENTER TO RETURN TO CAMPAIGN")
 
+	end_copy.text += "\nTIME %02d:%02d  //  PURITY %d%%" % [floori(GameState.elapsed / 60.0), floori(fmod(GameState.elapsed, 60.0)), roundi(MissionDirector.current_purity * 100.0)]
+
 func _on_campaign_changed(selected: int, unlocked: int, completed: Dictionary) -> void:
 	if mission_select_label == null:
 		return
@@ -274,6 +422,38 @@ func _on_campaign_changed(selected: int, unlocked: int, completed: Dictionary) -
 	var cleared: String = "  ✓ HELD" if completed.has(str(selected)) else ""
 	mission_select_label.text = "%02d / %02d  %s%s" % [selected + 1, unlocked, mission.title.to_upper(), cleared]
 	begin_button.text = "BEGIN COMMISSION %02d" % (selected + 1)
+	restoration_label.text = "GARDENS HELD %d / %d  //  %d%% RESTORED" % [completed.size(), GameState.MISSION_PATHS.size(), roundi(float(completed.size()) / GameState.MISSION_PATHS.size() * 100.0)]
+	_on_records_changed(GameState.mission_records)
+
+func _on_records_changed(records: Dictionary) -> void:
+	if mission_record_label == null:
+		return
+	var record: Dictionary = records.get(str(GameState.selected_mission), {})
+	if record.is_empty():
+		mission_record_label.text = "NO PRIOR COMMISSION RECORD\nFIRST ATTEMPT AWAITS"
+		return
+	var best: float = float(record.get("best_time", 0.0))
+	var best_text: String = "--:--" if best <= 0.0 else "%02d:%02d" % [floori(best / 60.0), floori(fmod(best, 60.0))]
+	mission_record_label.text = "ATTEMPTS %d  //  CLEARS %d\nBEST TIME %s  //  BEST PURITY %d%%" % [int(record.get("attempts", 0)), int(record.get("clears", 0)), best_text, roundi(float(record.get("best_purity", 0.0)) * 100.0)]
+
+func _on_encounter_state_changed(wave: int, intensity: float, label: String) -> void:
+	encounter_label.text = "WAVE %02d // %s // %d%%" % [wave, label, roundi(intensity * 100.0)]
+
+func _on_boss_state_changed(title: String, integrity: float, maximum: float, phase: int) -> void:
+	boss_panel.visible = integrity > 0.0
+	boss_title.text = "%s // THRONE PHASE %d" % [title, phase]
+	_set_bar(boss_bar, integrity, maximum)
+
+func _on_hit_confirmed(defeated: bool, _damage_type: StringName) -> void:
+	_hit_time = 0.22 if defeated else 0.12
+	hit_marker.text = "+" if defeated else "x"
+	hit_marker.add_theme_color_override("font_color", GOLD if defeated else PALE)
+
+func _on_settings_changed(values: Dictionary) -> void:
+	_subtitles_enabled = bool(values.get(&"subtitles", true))
+	var ui_scale: float = float(values.get(&"ui_scale", 1.0))
+	for screen: Control in [title_screen, gameplay, end_screen]:
+		screen.scale = Vector2.ONE * ui_scale
 
 func _on_mission_selected(_index: int, mission: Resource) -> void:
 	var mission_data := mission as MissionResource
@@ -317,6 +497,8 @@ func _on_radiant() -> void:
 	state_label.add_theme_color_override("font_color", GOLD)
 
 func _post_message(text: String, tone: StringName) -> void:
+	if not _subtitles_enabled and tone == &"info":
+		return
 	message_label.text = text
 	message_label.modulate = Color.WHITE
 	message_label.add_theme_color_override("font_color", DANGER if tone == &"danger" else (GOLD if tone == &"holy" else PALE))

@@ -24,6 +24,7 @@ func _ready() -> void:
 	EventBus.damage_requested.connect(_on_damage_requested)
 	EventBus.bind_requested.connect(_on_bind_requested)
 	EventBus.mark_requested.connect(_on_mark_requested)
+	EventBus.impulse_requested.connect(_on_impulse_requested)
 
 func _physics_process(delta: float) -> void:
 	if not GameState.is_playing():
@@ -68,15 +69,23 @@ func _physics_process(delta: float) -> void:
 func can_take_damage(damage_type: StringName) -> bool:
 	return damage_type != &"utility" and damage_type != &"mark"
 
-func _on_damage_requested(target: Node, amount: float, damage_type: StringName, _hit_position: Vector3) -> void:
+func _on_damage_requested(target: Node, amount: float, damage_type: StringName, hit_position: Vector3) -> void:
 	if target != self or not can_take_damage(damage_type):
 		return
 	_last_damage_type = damage_type
 	var multiplier: float = 1.45 if marked_remaining > 0.0 else 1.0
 	integrity -= amount * multiplier
 	_body_material.emission_energy_multiplier = 5.0
+	EventBus.hit_confirmed.emit(integrity <= 0.0, damage_type)
+	EventBus.combat_feedback.emit(&"defeat" if integrity <= 0.0 else &"hit", hit_position, tint.lightened(0.35), amount / maxf(max_integrity, 1.0))
 	if integrity <= 0.0:
 		_defeat()
+
+func _on_impulse_requested(target: Node, direction: Vector3, strength: float) -> void:
+	if target != self or bound_remaining > 0.0:
+		return
+	var horizontal := Vector3(direction.x, 0.0, direction.z).normalized()
+	velocity += horizontal * strength
 
 func _on_bind_requested(target: Node, duration: float) -> void:
 	if target == self:
