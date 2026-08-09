@@ -215,28 +215,36 @@ shape — something that only breaks under real engine execution, never visible 
 
 1. macOS export needed `rendering/textures/vram_compression/import_etc2_astc=true` at the project level,
    not just the per-preset export option.
-2. `tests/campaign_smoke.gd`'s boss-spawn timing depended on `EncounterDirector`'s tick cooldown, paced by
-   real per-frame delta, which varies between the debug editor run and the exported release binary. First
-   fix: reset the tick and let the engine's next scheduled frame pick it up.
-3. `RenderingServer.global_shader_parameter_get()` returns `Nil` for every parameter type under
+2. `RenderingServer.global_shader_parameter_get()` returns `Nil` for every parameter type under
    `--headless`, and `ImageTexture.get_image()` has the same readback problem — both discovered by CI, not
    guessed.
-4. Separately from (2), `TerritorialPrince.phase` only updates inside its own `_physics_process()`, which
-   runs on the engine's independent physics schedule — decoupled from `campaign_smoke.gd`'s idle-frame test
-   loop, and not guaranteed to run again before the loop ends. First fix: force one synchronous
-   `_physics_process(0.0)` call right after dealing the test's damage.
-5. **(2) and (4) together were still not enough** — the exact same application code (unchanged) passed
-   3-platform CI plus 10 local repetitions once, then failed the identical assertion on a *later* CI run
-   with zero code changes in between. "Reset the tick and trust the next engine frame" was never fully
-   deterministic, just lower-probability. The actual fix: call `EncounterDirector._process(0.0)` directly
-   and synchronously at the moment the test needs the boss to exist, rather than nudging engine-scheduled
-   timing and hoping. Combined with (4)'s fix, both halves of this test (boss spawns, boss reaches the
-   required phase) are now driven by explicit synchronous calls the test controls, with no remaining
-   dependency on how many real engine frames land in a given window.
+3. **`tests/campaign_smoke.gd`'s boss assertion — three attempts to diagnose, the first two wrong.**
+   Attempt 1: assumed `EncounterDirector`'s tick cooldown (paced by real per-frame delta) meant the boss
+   spawned too late; "fix" was to reset the tick and trust the engine's next scheduled frame. Attempt 2:
+   assumed `TerritorialPrince.phase` (updated only inside its own `_physics_process()`, decoupled from the
+   test's idle-frame loop) wasn't recalculating in time; "fix" was to force one synchronous
+   `_physics_process(0.0)` call. Both looked correct, both reduced the observed failure rate, **neither was
+   the actual bug** — proven when the identical "fixed" code failed the identical assertion again on a
+   later CI run with zero changes in between, and a diagnostic-instrumented repro (Codex, ~1-in-30
+   reproduction rate) showed the real sequence: the boss reliably spawns and reliably reaches phase 3 right
+   on schedule (frame 220, exactly as the test intends) — then gets **fully defeated by ambient incidental
+   damage** from the live encounter sometime in the ~140 frames after that, before the test's end-of-loop
+   check. A defeated boss is a *stronger* success signal than "reached phase ≥ 2," not a failure. The actual
+   bug: the test checked live node state at the very end instead of tracking what happened *during* the
+   run — so when the boss was later defeated (a legitimate, expected outcome of a 360-frame mixed
+   encounter), the check found no node and failed. Real fix: listen to `EventBus.boss_state_changed`
+   (track peak phase reached) and `EventBus.boss_defeated` throughout the run instead of inspecting
+   `get_tree().get_nodes_in_group("enemies")` only at the end. No production code changed — the two earlier
+   "fixes" weren't wrong to leave in per se, they just weren't addressing anything real; both were removed
+   as part of this correction since they added complexity without a purpose once the actual bug was found.
 
 M18a's manual play check (see above) confirms the shader itself: reviewed by hand, passed headless CI, and
-watched rendering on real hardware. But (5) is the one to actually internalize from this phase: a fix that
-"passes CI" and even "passes 10 repeated local runs" is not the same as a fix that removes the underlying
-race — it can just make the race rarer. For anything timing-shaped (frame-count-based tests, tick
-cooldowns, physics-vs-idle-frame coupling), prefer removing the race entirely (call the thing directly,
-synchronously) over reducing its probability.
+watched rendering on real hardware. But (3) is the one to actually internalize from this phase, and it cuts
+deeper than "timing is hard": **a plausible-sounding mechanism, confirmed by a fix that measurably reduces
+a failure rate, is not the same as a confirmed root cause.** Both of the first two campaign_smoke fixes had
+a story that made sense, and both partially "worked" (lower flake rate) for a reason that had nothing to do
+with why they seemed to work — they happened to also make the boss reach its damage/phase milestones
+earlier in the run, which incidentally gave the *real* bug (later ambient defeat) less opportunity to
+manifest before other, unrelated variance did. Reducing a flake rate is evidence a change did *something*;
+it is not evidence the change fixed the thing you think it fixed. Get a direct diagnostic capture of an
+actual failure before trusting a theory, especially the second time a "fix" doesn't fully hold.
