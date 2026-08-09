@@ -33,6 +33,9 @@ $arguments = @(
 $process = Start-Process -FilePath $godotExecutable -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
 
 if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $outputPath)) {
+    if (Test-Path -LiteralPath $logPath) {
+        Get-Content -Tail 200 -LiteralPath $logPath | ForEach-Object { Write-Host $_ }
+    }
     throw "Windows export failed. Install the Godot 4.4.1 export templates and inspect $logPath."
 }
 

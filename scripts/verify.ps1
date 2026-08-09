@@ -46,6 +46,9 @@ foreach ($check in $checks) {
 
     Write-Host ("Running {0}..." -f $check.Name)
     $process = Start-Process -FilePath $godotExecutable -ArgumentList $arguments -WindowStyle Hidden -Wait -PassThru
+    if (Test-Path -LiteralPath $logPath) {
+        Get-Content -LiteralPath $logPath | ForEach-Object { Write-Host $_ }
+    }
     if ($process.ExitCode -ne 0) {
         throw ("{0} failed with exit code {1}. See {2}." -f $check.Name, $process.ExitCode, $logPath)
     }
