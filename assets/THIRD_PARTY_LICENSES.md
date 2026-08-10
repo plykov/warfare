@@ -49,3 +49,15 @@ The assets below are redistributed with Garden Reclaimed. Attribution is not req
   - `prayer.ogg` (upstream `maximize_005.ogg`)
   - `denied.ogg` (upstream `error_008.ogg`)
   - `host_return.ogg` (upstream `open_004.ogg`)
+
+## Kenney Castle Kit 2.0
+
+- Source: https://kenney.nl/assets/castle-kit
+- Author/distributor: Kenney (https://kenney.nl)
+- License: Creative Commons Zero 1.0 Universal (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
+- Bundled license verified: `License.txt` in the downloaded `kenney_castle-kit.zip`
+- Files used:
+  - `assets/models/arena/castle_wall_half_modular.glb` (upstream `Models/GLB format/wall-half-modular.glb`)
+  - `assets/models/arena/castle_tower_square_mid.glb` (upstream `Models/GLB format/tower-square-mid.glb`)
+  - `assets/models/arena/castle_tower_square_base_border.glb` (upstream `Models/GLB format/tower-square-base-border.glb`)
+  - `assets/models/arena/Textures/colormap.png` (upstream `Models/GLB format/Textures/colormap.png`)
