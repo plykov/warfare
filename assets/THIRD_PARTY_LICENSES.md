@@ -49,3 +49,23 @@ The assets below are redistributed with Garden Reclaimed. Attribution is not req
   - `prayer.ogg` (upstream `maximize_005.ogg`)
   - `denied.ogg` (upstream `error_008.ogg`)
   - `host_return.ogg` (upstream `open_004.ogg`)
+
+## Freesound CC0 Ambient Beds
+
+Each source page below was individually checked on 2026-08-10 and displayed the Creative Commons Zero license. The redistributed OGG is Freesound's public `-lq.ogg` preview encoding of the identified CC0 source recording.
+
+- `assets/audio/ambient/corrupt_bed.ogg`
+  - Source: "Industrial Machine Drone (Seamless Loop)" by kkenny101, https://freesound.org/people/kkenny101/sounds/854269/
+  - License: Creative Commons Zero 1.0 Universal (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
+- `assets/audio/ambient/pure_bed.ogg`
+  - Source: "Kinesis Stellae - Choir" by Vrymaa, https://freesound.org/people/Vrymaa/sounds/770060/
+  - License: Creative Commons Zero 1.0 Universal (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
+- `assets/audio/ambient/water_bed.ogg`
+  - Source: "Loopable Stream of Water on Rocks 2" by Geoff-Bremner-Audio, https://freesound.org/people/Geoff-Bremner-Audio/sounds/798673/
+  - License: Creative Commons Zero 1.0 Universal (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
+- `assets/audio/ambient/bird_bed.ogg`
+  - Source: "ambience birds loop.wav" by soundofsong, https://freesound.org/people/soundofsong/sounds/640781/
+  - License: Creative Commons Zero 1.0 Universal (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
+- `assets/audio/ambient/legacy_bed.ogg`
+  - Source: "glass chimes loop.flac" by arseniiv, https://freesound.org/people/arseniiv/sounds/260017/
+  - License: Creative Commons Zero 1.0 Universal (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
