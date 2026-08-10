@@ -9,9 +9,16 @@ const CHAPTER_TINTS: Array[Color] = [
 	Color(0.26, 0.34, 0.24), Color(0.18, 0.34, 0.38), Color(0.42, 0.25, 0.16), Color(0.31, 0.18, 0.4),
 	Color(0.48, 0.25, 0.08), Color(0.18, 0.25, 0.45), Color(0.38, 0.16, 0.36), Color(0.5, 0.22, 0.14)
 ]
+const ARENA_WALL_MODEL: PackedScene = preload("res://assets/models/arena/castle_wall_half_modular.glb")
+const ARENA_COLUMN_MODEL: PackedScene = preload("res://assets/models/arena/castle_tower_square_mid.glb")
+const ARENA_PLATFORM_MODEL: PackedScene = preload("res://assets/models/arena/castle_tower_square_base_border.glb")
+const MODEL_WALL: StringName = &"wall"
+const MODEL_COLUMN: StringName = &"column"
+const MODEL_PLATFORM: StringName = &"platform"
 
 static var _detail_noise_texture: NoiseTexture2D
 static var _detail_normal_texture: NoiseTexture2D
+static var _arena_model_cache: Dictionary = {}
 
 var chapter_index: int = 0
 
@@ -124,6 +131,79 @@ static func _shared_normal_texture() -> NoiseTexture2D:
 		_detail_normal_texture = texture
 	return _detail_normal_texture
 
+static func _first_mesh_instance(root: Node) -> MeshInstance3D:
+	if root is MeshInstance3D:
+		return root as MeshInstance3D
+	for child: Node in root.get_children():
+		var match := _first_mesh_instance(child)
+		if match != null:
+			return match
+	return null
+
+static func _model_kind_for_size(size: Vector3) -> StringName:
+	var horizontal_max := maxf(size.x, size.z)
+	var horizontal_min := minf(size.x, size.z)
+	if size.y >= horizontal_max * 1.05:
+		return MODEL_COLUMN
+	if horizontal_max >= horizontal_min * 1.55:
+		return MODEL_WALL
+	if size.y <= horizontal_min * 0.7:
+		return MODEL_PLATFORM
+	return MODEL_WALL
+
+static func _model_scene_for(kind: StringName) -> PackedScene:
+	match kind:
+		MODEL_COLUMN:
+			return ARENA_COLUMN_MODEL
+		MODEL_PLATFORM:
+			return ARENA_PLATFORM_MODEL
+		_:
+			return ARENA_WALL_MODEL
+
+static func _model_profile(kind: StringName) -> Dictionary:
+	if _arena_model_cache.has(kind):
+		return _arena_model_cache[kind]
+	var root := _model_scene_for(kind).instantiate()
+	var mesh_instance := _first_mesh_instance(root)
+	assert(mesh_instance != null and mesh_instance.mesh != null, "Imported arena scene must contain a MeshInstance3D")
+	var profile := {
+		"mesh": mesh_instance.mesh,
+		"bounds": mesh_instance.mesh.get_aabb(),
+	}
+	_arena_model_cache[kind] = profile
+	root.free()
+	return profile
+
+static func _uv_scale_for(kind: StringName) -> Vector3:
+	match kind:
+		MODEL_COLUMN:
+			return Vector3(3.25, 3.25, 3.25)
+		MODEL_PLATFORM:
+			return Vector3(6.0, 6.0, 6.0)
+		_:
+			return Vector3(4.5, 4.5, 4.5)
+
+static func _model_visual_for_size(size: Vector3) -> MeshInstance3D:
+	var kind := _model_kind_for_size(size)
+	var profile := _model_profile(kind)
+	var bounds: AABB = profile.bounds
+	var visual := MeshInstance3D.new()
+	visual.name = "Arena%sModel" % String(kind).capitalize()
+	visual.mesh = profile.mesh
+	var local_target_size := size
+	if kind == MODEL_WALL and size.x >= size.z:
+		# The wall prop's long authored axis is Z. Rotate it when the recipe's
+		# long horizontal axis is X, then scale in the prop's local axes.
+		visual.rotation.y = PI * 0.5
+		local_target_size = Vector3(size.z, size.y, size.x)
+	visual.scale = local_target_size / bounds.size
+	# Kenney's modular pieces sit on Y=0. Recenter the scaled authored AABB so
+	# the visual occupies the same box as the unchanged collision shape.
+	visual.position = -(visual.basis * bounds.get_center())
+	visual.set_meta(&"arena_model_kind", kind)
+	visual.set_meta(&"arena_natural_bounds", bounds)
+	return visual
+
 func _add_structure(at: Vector3, size: Vector3, tint: Color, glow: float) -> void:
 	var body := StaticBody3D.new()
 	body.add_to_group("arena_structures")
@@ -134,10 +214,8 @@ func _add_structure(at: Vector3, size: Vector3, tint: Color, glow: float) -> voi
 	shape.size = size
 	collision.shape = shape
 	body.add_child(collision)
-	var visual := MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	visual.mesh = mesh
+	var visual := _model_visual_for_size(size)
+	var model_kind: StringName = visual.get_meta(&"arena_model_kind", MODEL_WALL)
 	var material := StandardMaterial3D.new()
 	material.albedo_color = tint.darkened(0.48)
 	material.metallic = 0.28
@@ -149,7 +227,7 @@ func _add_structure(at: Vector3, size: Vector3, tint: Color, glow: float) -> voi
 	material.normal_enabled = true
 	material.normal_texture = _shared_normal_texture()
 	material.normal_scale = 0.36
-	material.uv1_scale = Vector3(5.0, 5.0, 5.0)
+	material.uv1_scale = _uv_scale_for(model_kind)
 	material.emission_enabled = glow > 0.0
 	material.emission = tint.darkened(0.2)
 	material.emission_energy_multiplier = glow * 0.7
