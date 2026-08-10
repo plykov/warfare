@@ -2,6 +2,7 @@ extends Node
 
 const CUE_PLAYER_COUNT: int = 6
 const CUE_GAIN_DB: float = -12.0
+const AMBIENT_FLOOR_DB: float = -80.0
 const CUE_STREAMS: Dictionary = {
 	&"hit": preload("res://assets/audio/sfx/hit.ogg"),
 	&"purify": preload("res://assets/audio/sfx/purify.ogg"),
@@ -19,16 +20,18 @@ const CUE_STREAMS: Dictionary = {
 	&"synthetic_ricochet": preload("res://assets/audio/sfx/synthetic_ricochet.ogg"),
 	&"legacy_garden": preload("res://assets/audio/sfx/legacy_garden.ogg"),
 }
+const AMBIENT_STREAMS: Dictionary = {
+	&"corrupt": preload("res://assets/audio/ambient/corrupt_bed.ogg"),
+	&"pure": preload("res://assets/audio/ambient/pure_bed.ogg"),
+	&"water": preload("res://assets/audio/ambient/water_bed.ogg"),
+	&"bird": preload("res://assets/audio/ambient/bird_bed.ogg"),
+	&"legacy": preload("res://assets/audio/ambient/legacy_bed.ogg"),
+}
 
-var _player: AudioStreamPlayer
-var _playback: AudioStreamGeneratorPlayback
+var _ambient_players: Dictionary = {}
 var _cue_players: Array[AudioStreamPlayer] = []
 var _cue_cursor: int = 0
 var _master_volume: float = 0.8
-var _ambient_phase: float = 0.0
-var _legacy_phase: float = 0.0
-var _nature_phase: float = 0.0
-var _bird_phase: float = 0.0
 var _purity: float = 0.0
 var _legacy_strength: float = 0.0
 var _veiled: bool = false
@@ -40,20 +43,19 @@ func _ready() -> void:
 	EventBus.restoration_legacy_changed.connect(_on_restoration_legacy_changed)
 	EventBus.ariel_spoke.connect(func(_text: String) -> void: play_cue(&"ariel"))
 	EventBus.prayer_started.connect(func() -> void: play_cue(&"prayer"))
-	EventBus.entered_veiled.connect(func() -> void: _veiled = true)
-	EventBus.exited_veiled.connect(func() -> void: _veiled = false)
-	# Godot 4.4 retains AudioStreamGeneratorPlayback until shutdown in headless
-	# mode. Tests do not need an audio device, so avoid creating one there.
+	EventBus.entered_veiled.connect(_on_entered_veiled)
+	EventBus.exited_veiled.connect(_on_exited_veiled)
+	# Tests do not need an audio device, so avoid creating players headlessly.
 	if DisplayServer.get_name() == "headless":
 		return
-	_player = AudioStreamPlayer.new()
-	var stream := AudioStreamGenerator.new()
-	stream.mix_rate = 22050.0
-	stream.buffer_length = 0.25
-	_player.stream = stream
-	add_child(_player)
-	_player.play()
-	_playback = _player.get_stream_playback()
+	for kind: StringName in AMBIENT_STREAMS:
+		var ambient_player := AudioStreamPlayer.new()
+		ambient_player.name = "%sBed" % String(kind).capitalize()
+		ambient_player.stream = AMBIENT_STREAMS[kind]
+		ambient_player.volume_db = AMBIENT_FLOOR_DB
+		add_child(ambient_player)
+		_ambient_players[kind] = ambient_player
+		ambient_player.play()
 	for index: int in range(CUE_PLAYER_COUNT):
 		var cue_player := AudioStreamPlayer.new()
 		cue_player.name = "CuePlayer%02d" % index
@@ -64,10 +66,9 @@ func _ready() -> void:
 func _on_settings_changed(values: Dictionary) -> void:
 	_master_volume = float(values.get(&"master_volume", 0.8))
 	var master_db := linear_to_db(maxf(_master_volume, 0.0001))
-	if _player != null:
-		_player.volume_db = master_db
 	for cue_player: AudioStreamPlayer in _cue_players:
 		cue_player.volume_db = master_db + CUE_GAIN_DB
+	_update_ambient_levels()
 
 func play_cue(kind: StringName) -> void:
 	if _cue_players.is_empty():
@@ -88,27 +89,47 @@ func play_cue(kind: StringName) -> void:
 	_cue_cursor = (selected_index + 1) % _cue_players.size()
 
 func _process(_delta: float) -> void:
-	if _playback == null:
+	_update_ambient_levels()
+
+static func ambient_gain_for(kind: StringName, purity: float, legacy_strength: float, veiled: bool) -> float:
+	var clamped_purity := clampf(purity, 0.0, 1.0)
+	if veiled:
+		return 0.0015 if kind == &"pure" else 0.0
+	match kind:
+		&"corrupt":
+			return (1.0 - clamped_purity) * 0.0035
+		&"pure":
+			return lerpf(0.003, 0.012, clamped_purity)
+		&"water":
+			return clamped_purity * 0.0018
+		&"bird":
+			return clamped_purity * 0.0028
+		&"legacy":
+			return clampf(legacy_strength, 0.0, 1.0) * 0.0045
+		_:
+			return 0.0
+
+func _update_ambient_levels() -> void:
+	if _ambient_players.is_empty():
 		return
-	var frames: int = mini(_playback.get_frames_available(), 256)
-	for _frame: int in range(frames):
-		_ambient_phase = fmod(_ambient_phase + (82.0 + _purity * 146.0) / 22050.0, 1.0)
-		_legacy_phase = fmod(_legacy_phase + 164.81 / 22050.0, 1.0)
-		_nature_phase = fmod(_nature_phase + 0.38 / 22050.0, 1.0)
-		var bird_envelope: float = pow(maxf(0.0, sin(_nature_phase * TAU)), 18.0)
-		_bird_phase = fmod(_bird_phase + (1180.0 + bird_envelope * 720.0) / 22050.0, 1.0)
-		var ambient_level: float = (0.0015 if _veiled else lerpf(0.003, 0.012, _purity))
-		var harmonic: float = sin(_ambient_phase * TAU) + sin(_ambient_phase * TAU * (1.5 + _purity * 0.5)) * _purity * 0.45
-		var legacy_chord: float = (sin(_legacy_phase * TAU) + sin(_legacy_phase * TAU * 1.25) * 0.55 + sin(_legacy_phase * TAU * 1.5) * 0.38) * _legacy_strength
-		var corrupt_stem: float = (sin(_ambient_phase * TAU * 0.5) + sin(_ambient_phase * TAU * 0.707) * 0.62) * (1.0 - _purity) * 0.0035
-		var water_stem: float = (sin(_ambient_phase * TAU * 0.37) + sin(_ambient_phase * TAU * 0.61) * 0.55) * _purity * 0.0018
-		var bird_stem: float = sin(_bird_phase * TAU) * bird_envelope * _purity * 0.0028
-		var environmental_stems: float = 0.0 if _veiled else corrupt_stem + water_stem + bird_stem
-		var sample: float = harmonic * ambient_level + legacy_chord * (0.0 if _veiled else 0.0045) + environmental_stems
-		_playback.push_frame(Vector2(sample, sample))
+	var master_db := linear_to_db(maxf(_master_volume, 0.0001))
+	for kind: StringName in _ambient_players:
+		var gain := ambient_gain_for(kind, _purity, _legacy_strength, _veiled)
+		var layer_db := AMBIENT_FLOOR_DB if gain <= 0.0 else maxf(AMBIENT_FLOOR_DB, linear_to_db(gain))
+		var ambient_player := _ambient_players[kind] as AudioStreamPlayer
+		ambient_player.volume_db = maxf(AMBIENT_FLOOR_DB, master_db + layer_db)
 
 func _on_corruption_field_changed(_values: PackedFloat32Array, _width: int, _height: int, purity: float, _anchor: float) -> void:
 	_purity = clampf(purity, 0.0, 1.0)
+	_update_ambient_levels()
+
+func _on_entered_veiled() -> void:
+	_veiled = true
+	_update_ambient_levels()
+
+func _on_exited_veiled() -> void:
+	_veiled = false
+	_update_ambient_levels()
 
 static func restoration_stem_gain(source_count: int, mean_purity: float) -> float:
 	return clampf(float(source_count) / 6.0, 0.0, 1.0) * clampf(mean_purity, 0.0, 1.0)
@@ -123,8 +144,12 @@ static func cue_voice_layer_count(kind: StringName) -> int:
 static func cue_stream_for(kind: StringName) -> AudioStream:
 	return CUE_STREAMS.get(kind) as AudioStream
 
+static func ambient_stream_for(kind: StringName) -> AudioStream:
+	return AMBIENT_STREAMS.get(kind) as AudioStream
+
 func _on_restoration_legacy_changed(source_count: int, _bloom_count: int, mean_purity: float) -> void:
 	_legacy_strength = restoration_stem_gain(source_count, mean_purity)
+	_update_ambient_levels()
 	if source_count > 0:
 		play_cue(&"legacy_garden")
 
@@ -134,20 +159,20 @@ func _reset_for_test() -> void:
 		cue_player.stream = null
 	_cue_cursor = 0
 	_legacy_strength = 0.0
+	_update_ambient_levels()
 
 func shutdown() -> void:
+	for ambient_player: AudioStreamPlayer in _ambient_players.values():
+		ambient_player.stop()
+		ambient_player.stream = null
+		ambient_player.queue_free()
+	_ambient_players.clear()
 	for cue_player: AudioStreamPlayer in _cue_players:
 		cue_player.stop()
 		cue_player.stream = null
 		cue_player.queue_free()
 	_cue_players.clear()
 	_cue_cursor = 0
-	if _player != null:
-		_player.stop()
-		_player.stream = null
-		_player.queue_free()
-		_player = null
-	_playback = null
 
 func _exit_tree() -> void:
 	shutdown()

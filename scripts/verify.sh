@@ -28,7 +28,7 @@ declare -a SCENES=(
 	"res://tests/balance_sim.tscn"
 )
 declare -a MARKERS=(
-	"GARDEN RECLAIMED TESTS: 41 passed"
+	"GARDEN RECLAIMED TESTS: 42 passed"
 	"GARDEN RECLAIMED SMOKE: gameplay ran 300 frames"
 	"GARDEN RECLAIMED CAMPAIGN SMOKE: final commission mixed encounter ran 360 frames"
 	"GARDEN RECLAIMED BALANCE SIM: 12 commissions x 3 profiles passed"

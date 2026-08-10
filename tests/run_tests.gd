@@ -29,6 +29,7 @@ func _run() -> void:
 	_test_cross_mission_restoration_legacy()
 	_test_polish_cue_profiles()
 	_test_cue_asset_mapping()
+	_test_ambient_asset_mapping()
 	_test_v2_save_migration()
 	_test_rank_doctrine_profiles()
 	_test_rank_world_readability()
@@ -52,7 +53,7 @@ func _run() -> void:
 	_test_corruption_shader_globals()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 41 passed")
+		print("GARDEN RECLAIMED TESTS: 42 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -371,6 +372,26 @@ func _test_cue_asset_mapping() -> void:
 		if stream != null:
 			paths[stream.resource_path] = true
 	_assert(paths.size() == cue_kinds.size(), "Every named cue must have a distinct sourced audio asset")
+
+func _test_ambient_asset_mapping() -> void:
+	var bed_kinds: Array[StringName] = [&"corrupt", &"pure", &"water", &"bird", &"legacy"]
+	var paths: Dictionary = {}
+	for kind: StringName in bed_kinds:
+		var stream := AudioDirector.ambient_stream_for(kind)
+		_assert(stream != null, "Ambient bed %s must map to an imported stream" % kind)
+		if stream != null:
+			paths[stream.resource_path] = true
+			_assert(stream is AudioStreamOggVorbis and (stream as AudioStreamOggVorbis).loop, "Ambient bed %s must be an always-looping OGG stream" % kind)
+	_assert(paths.size() == bed_kinds.size(), "Every ambient layer must use a distinct sourced audio asset")
+	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"corrupt", 0.0, 0.0, false), 0.0035), "Corrupt bed must retain its original full-corruption gain")
+	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"corrupt", 1.0, 0.0, false), 0.0), "Corrupt bed must fade out at full purity")
+	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"pure", 0.0, 0.0, false), 0.003), "Pure bed must retain the original low-purity harmonic floor")
+	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"pure", 1.0, 0.0, false), 0.012), "Pure bed must retain the original full-purity harmonic gain")
+	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"water", 1.0, 0.0, false), 0.0018), "Water bed must retain its original full-purity gain")
+	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"bird", 1.0, 0.0, false), 0.0028), "Bird bed must retain its original full-purity gain")
+	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"legacy", 0.0, 1.0, false), 0.0045), "Legacy bed must retain its original full-strength gain")
+	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"pure", 0.5, 1.0, true), 0.0015), "Veiled state must retain the original near-silent harmonic floor")
+	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"legacy", 1.0, 1.0, true), 0.0), "Veiled state must silence environmental and legacy beds")
 
 func _test_v2_save_migration() -> void:
 	GameState._reset_for_test()
