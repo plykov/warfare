@@ -22,7 +22,7 @@ contract.
 | **M15** | New Game+ / Mastery mode | **Done** | `autoload/game_state.gd`, `autoload/corruption_director.gd`, `autoload/encounter_director.gd`, `autoload/mission_director.gd`, `ui/hud.gd` | No new mission fields needed — NG+ is a single stacking multiplier consumed at the same read sites M13's difficulty setting already touches |
 | **M16** | Post-campaign challenge missions | **Done** | `missions/data/mission_09..12.tres`, `autoload/game_state.gd` (`MISSION_PATHS` extended) | Same reasoning the original doc used for M11: content only, composed from the 6 existing objective primitives, no seventh primitive, no new arena geometry |
 | **M17** | Cross-platform export | **Done** | `export_presets.cfg`, `scripts/verify.sh`, `scripts/build_export.sh`, `scripts/smoke_export.sh`, `.github/workflows/build.yml` | Godot's export system was already headless-verified for Windows in CI; this is config plus two new CI legs, not engine code |
-| **M18** | Art/audio pass | **Engine-side track (M18a-d) done. Art/audio tracks scoped, sourcing decided, not yet built** | See breakdown below | Engine-side polish (no assets) is fully shipped. Sourcing decision for the two asset-dependent tracks is now made — CC0 packs (Kenney.nl) for both art and audio — detailed sub-milestone scope handed to Codex; implementation not started |
+| **M18** | Art/audio pass | **Done** (all of M18a-d + M18-art-1/2 + M18-audio-1/2 merged) | See breakdown below | Engine-side polish and all 4 asset sub-milestones shipped via CC0 packs (Kenney.nl + Freesound.org). One open item: user has not yet confirmed the M18-audio-2 subjective full-mission listen |
 
 **Explicitly not in this scope:** multiplayer/co-op. Nothing in Phase 1 or in this list implies it, and it
 would be the first change to force `EventBus` to become multi-peer-aware — a real architecture change, not
@@ -196,7 +196,7 @@ M18b/M18c/M18d are unblocked.
   GPU renderer is attached is still an open question the manual play check needs to answer — two rounds of
   CI failures on the readback side are a reason for more caution here, not less.
 
-## M18-art / M18-audio — sourcing decided, scoped, not yet built
+## M18-art / M18-audio — all four sub-milestones done, one subjective gate open
 
 **Sourcing decision:** CC0 asset packs, specifically [Kenney.nl](https://kenney.nl) — consistently CC0
 across every pack checked, widely used in Godot projects, and low-poly enough to not clash with this
@@ -212,8 +212,8 @@ duplicated here — see the sub-milestone summary below for what's load-bearing)
 |---|---|---|---|
 | **M18-art-1** | Foliage models in `RestorationDirector` | `MultiMesh` already takes one shared mesh for hundreds of instances — swapping the mesh source for an imported model is close to a one-value change, same shape as M18d | **Done** (PR #18, merged) — used Nature Kit instead of the scoped Foliage Pack after finding the latter was 2D; bundled license independently re-verified |
 | **M18-audio-1** | Cue SFX in `AudioDirector` | `play_cue(kind)`'s `match` dispatch is a clean seam; real fix is additive (a pooled `AudioStreamPlayer` set for one-shots) alongside the existing ambient generator, not a rewrite of it | **Done** (PR #19, merged) — code-reviewed line-by-line before merge: headless guard correctly extends to the new player pool, idle-first/round-robin logic verified correct, new test genuinely asserts stream distinctness (not just non-null); CI green on all 3 platforms |
-| **M18-audio-2** | Ambient bed replacement | Now scoped: replace the single `AudioStreamGenerator` ambient path with 5 looping `AudioStreamPlayer`s, each volume-driven by the *same formulas* already computing the synthesized layers' amplitudes today (`_purity`, `_legacy_strength`, `_veiled` all already published) | Scoped, not started — flagged as the one milestone in this phase where "sounds right" is a genuine subjective call, not a rendering-correctness check |
-| **M18-art-2** | Arena structure models in `ChapterArena` | Now scoped: reuse `_add_structure()`'s existing "stretch a mesh to fit an arbitrary box" contract (`BoxMesh.size = size` today) with a small set of real Castle Kit props non-uniformly scaled the same way, instead of a per-structure hand-curation pass | Scoped, not started — `recipe_for()`'s test-asserted data and `BoxShape3D` collision are explicitly untouched by this approach |
+| **M18-audio-2** | Ambient bed replacement | Replaced the single `AudioStreamGenerator` ambient path with 5 looping `AudioStreamPlayer`s, each volume-driven by the *same formulas* that computed the synthesized layers' amplitudes | **Done** (PR #22, merged) — code-reviewed line-by-line: `ambient_gain_for()` is an exact port of the original per-layer gain math (`corrupt = (1-purity)*0.0035`, `pure = lerp(0.003,0.012,purity)`, `water = purity*0.0018`, `bird = purity*0.0028`, `legacy = legacy_strength*0.0045`, veiled → pure pinned to 0.0015 and everything else 0), converted to dB with an -80dB floor, never stop/restart (volume-only crossfade); headless guard correctly extended to the 5 new players; new `_test_ambient_asset_mapping` pins exact gain values, not just distinctness — a stronger test than M18-audio-1's. **Open item: the subjective full-mission listen-through has not been confirmed by the user.** Objective checks (looping, gain curve, crossfade smoothness, non-silence, seam level) all passed per Codex's report, but "do the 5 layers sound right together" is a taste call only the user can make — do not treat this as fully closed until they do one mission with audio on and confirm. |
+| **M18-art-2** | Arena structure models in `ChapterArena` | Reused `_add_structure()`'s existing "stretch a mesh to fit an arbitrary box" contract with 3 Castle Kit props (wall/column/platform) non-uniformly scaled the same way | **Done** (PR #21, merged) — code-reviewed line-by-line: `_model_kind_for_size()` classifies every recipe box into wall/column/platform by proportion with a safe wall default (no unhandled case); `recipe_for()` and `_add_structure()`'s signature/`BoxShape3D` collision are byte-for-byte untouched, confirmed directly from the diff; rotation-then-scale-then-recenter ordering in `_model_visual_for_size()` is correct (rotation and scale are applied to the node before `visual.basis` is read for the recentering offset, so the offset reflects the final transform, not a stale one); per-kind `uv1_scale` (4.5/3.25/6.0) preserved. Real-GPU playcheck (Codex): 22/22 structures visual AABB == recipe size == collision size across chapters 1/4/7, 22/22 physics probes hit, rebuild time ~2.36ms avg (no regression vs. M18c's ~45ms baseline for the whole-arena rebuild). |
 
 **Process requirements carried over from M18-engine, still binding:** no new signals should be needed for
 any of this (pure consumers of state already published); confirm Godot's actual GLTF import behavior
@@ -221,6 +221,14 @@ empirically rather than assume it (this session's track record is specifically t
 assumptions have twice turned out wrong); the manual play check is required per sub-milestone, headless CI
 cannot catch a wrong-scale or missing-texture asset any more than it could catch a broken shader; one PR
 per sub-milestone.
+
+**Process note — provenance-ledger conflicts across parallel sub-milestone branches:** M18-art-2 and
+M18-audio-2 were developed as independent branches from the same `main` SHA, and both appended to
+`assets/THIRD_PARTY_LICENSES.md`, so PR #22 conflicted after PR #21 merged first. Resolved additively
+(merge `main` into the still-open branch, keep both provenance sections, reverify, push the merge commit)
+— no provenance lost. Worth having sub-milestone branches rebase onto `main` before opening a PR in future
+rounds where two art/audio branches are worked in parallel, to avoid the conflict rather than resolve it
+after the fact.
 
 ## Test suite changes
 
