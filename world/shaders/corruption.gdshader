@@ -18,6 +18,7 @@ global uniform vec3 corruption_world_origin;
 global uniform vec2 corruption_world_size;
 global uniform vec3 corruption_pure_color : source_color;
 global uniform bool corruption_high_contrast;
+global uniform bool corruption_colorblind_safe;
 
 varying vec3 world_position;
 
@@ -33,9 +34,17 @@ void fragment() {
 	float corruption = texture(corruption_mask, uv).r;
 
 	vec3 corrupt_color = corruption_high_contrast ? vec3(0.42, 0.0, 0.52) : vec3(0.006, 0.002, 0.009);
+	vec3 pure_color = corruption_pure_color;
 	vec3 holy_glow = vec3(0.035, 0.13, 0.028);
+	if (corruption_colorblind_safe) {
+		// Okabe-Ito color-universal blue/orange, converted from sRGB to linear.
+		// This explicit accessibility choice takes priority if both toggles are on.
+		corrupt_color = vec3(0.791298, 0.346704, 0.0);
+		pure_color = vec3(0.0, 0.168269, 0.445201);
+		holy_glow = pure_color * 0.56;
+	}
 
-	ALBEDO = mix(corruption_pure_color, corrupt_color, smoothstep(0.18, 0.82, corruption));
+	ALBEDO = mix(pure_color, corrupt_color, smoothstep(0.18, 0.82, corruption));
 	EMISSION = holy_glow * max(0.0, 0.48 - corruption) * 1.8;
 	ROUGHNESS = 0.88;
 }
