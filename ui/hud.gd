@@ -371,6 +371,8 @@ func _build_pause_overlay() -> void:
 	stack.add_child(guidance)
 	_add_slider_setting(stack, "AIM SENSITIVITY", &"mouse_sensitivity", 0.35, 2.5, 0.05)
 	_add_slider_setting(stack, "MASTER VOLUME", &"master_volume", 0.0, 1.0, 0.05)
+	_add_slider_setting(stack, "SFX VOLUME", &"sfx_volume", 0.0, 1.0, 0.05)
+	_add_slider_setting(stack, "AMBIENT VOLUME", &"ambient_volume", 0.0, 1.0, 0.05)
 	_add_slider_setting(stack, "SCREEN SHAKE", &"screen_shake", 0.0, 1.0, 0.05)
 	_add_slider_setting(stack, "UI SCALE", &"ui_scale", 0.85, 1.25, 0.05)
 	_add_toggle_setting(stack, "HIGH-CONTRAST CORRUPTION", &"high_contrast")

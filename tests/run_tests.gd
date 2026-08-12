@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_polish_cue_profiles()
 	_test_cue_asset_mapping()
 	_test_ambient_asset_mapping()
+	_test_audio_category_volumes()
 	_test_v2_save_migration()
 	_test_rank_doctrine_profiles()
 	_test_rank_world_readability()
@@ -53,7 +54,7 @@ func _run() -> void:
 	_test_corruption_shader_globals()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 42 passed")
+		print("GARDEN RECLAIMED TESTS: 43 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -392,6 +393,24 @@ func _test_ambient_asset_mapping() -> void:
 	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"legacy", 0.0, 1.0, false), 0.0045), "Legacy bed must retain its original full-strength gain")
 	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"pure", 0.5, 1.0, true), 0.0015), "Veiled state must retain the original near-silent harmonic floor")
 	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"legacy", 1.0, 1.0, true), 0.0), "Veiled state must silence environmental and legacy beds")
+
+func _test_audio_category_volumes() -> void:
+	SettingsState._reset_for_test()
+	_assert(is_equal_approx(float(SettingsState.get_value(&"sfx_volume")), 1.0), "SFX volume must default to a no-op multiplier")
+	_assert(is_equal_approx(float(SettingsState.get_value(&"ambient_volume")), 1.0), "Ambient volume must default to a no-op multiplier")
+	SettingsState.set_value(&"sfx_volume", -1.0)
+	SettingsState.set_value(&"ambient_volume", 2.0)
+	_assert(is_zero_approx(float(SettingsState.get_value(&"sfx_volume"))), "SFX volume must clamp to zero")
+	_assert(is_equal_approx(float(SettingsState.get_value(&"ambient_volume")), 1.0), "Ambient volume must clamp to one")
+	var cue_default := AudioDirector.cue_volume_db_for(0.8, 1.0)
+	var ambient_default := AudioDirector.ambient_volume_db_for(0.0035, 0.8, 1.0)
+	_assert(is_equal_approx(cue_default, linear_to_db(0.8) + AudioDirector.CUE_GAIN_DB), "Default SFX volume must preserve the existing cue level")
+	_assert(is_equal_approx(ambient_default, linear_to_db(0.8) + linear_to_db(0.0035)), "Default ambient volume must preserve the existing bed level")
+	_assert(AudioDirector.cue_volume_db_for(0.8, 0.0) <= AudioDirector.AMBIENT_FLOOR_DB, "Zero SFX volume must drive cues to or below the audio floor")
+	_assert(is_equal_approx(AudioDirector.ambient_volume_db_for(0.0035, 0.8, 0.0), AudioDirector.AMBIENT_FLOOR_DB), "Zero ambient volume must drive beds to the audio floor")
+	_assert(cue_default > AudioDirector.AMBIENT_FLOOR_DB, "Ambient muting must not alter the independently calculated cue level")
+	_assert(ambient_default > AudioDirector.AMBIENT_FLOOR_DB, "SFX muting must not alter the independently calculated ambient level")
+	SettingsState._reset_for_test()
 
 func _test_v2_save_migration() -> void:
 	GameState._reset_for_test()

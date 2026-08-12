@@ -4,6 +4,8 @@ const SETTINGS_PATH := "user://garden_reclaimed_settings.cfg"
 const DEFAULTS := {
 	&"mouse_sensitivity": 1.0,
 	&"master_volume": 0.8,
+	&"sfx_volume": 1.0,
+	&"ambient_volume": 1.0,
 	&"screen_shake": 0.75,
 	&"high_contrast": false,
 	&"reduced_flash": false,
@@ -109,7 +111,7 @@ func reset_defaults() -> void:
 func _normalize(key: StringName, value: Variant) -> Variant:
 	match key:
 		&"mouse_sensitivity": return clampf(float(value), 0.35, 2.5)
-		&"master_volume": return clampf(float(value), 0.0, 1.0)
+		&"master_volume", &"sfx_volume", &"ambient_volume": return clampf(float(value), 0.0, 1.0)
 		&"screen_shake": return clampf(float(value), 0.0, 1.0)
 		&"ui_scale": return clampf(float(value), 0.85, 1.25)
 		&"high_contrast", &"reduced_flash", &"subtitles": return bool(value)

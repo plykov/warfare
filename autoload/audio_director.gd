@@ -32,6 +32,8 @@ var _ambient_players: Dictionary = {}
 var _cue_players: Array[AudioStreamPlayer] = []
 var _cue_cursor: int = 0
 var _master_volume: float = 0.8
+var _sfx_volume: float = 1.0
+var _ambient_volume: float = 1.0
 var _purity: float = 0.0
 var _legacy_strength: float = 0.0
 var _veiled: bool = false
@@ -65,9 +67,10 @@ func _ready() -> void:
 
 func _on_settings_changed(values: Dictionary) -> void:
 	_master_volume = float(values.get(&"master_volume", 0.8))
-	var master_db := linear_to_db(maxf(_master_volume, 0.0001))
+	_sfx_volume = float(values.get(&"sfx_volume", 1.0))
+	_ambient_volume = float(values.get(&"ambient_volume", 1.0))
 	for cue_player: AudioStreamPlayer in _cue_players:
-		cue_player.volume_db = master_db + CUE_GAIN_DB
+		cue_player.volume_db = cue_volume_db_for(_master_volume, _sfx_volume)
 	_update_ambient_levels()
 
 func play_cue(kind: StringName) -> void:
@@ -84,7 +87,7 @@ func play_cue(kind: StringName) -> void:
 	if cue_player.playing:
 		cue_player.stop()
 	cue_player.stream = stream
-	cue_player.volume_db = linear_to_db(maxf(_master_volume, 0.0001)) + CUE_GAIN_DB
+	cue_player.volume_db = cue_volume_db_for(_master_volume, _sfx_volume)
 	cue_player.play()
 	_cue_cursor = (selected_index + 1) % _cue_players.size()
 
@@ -109,15 +112,31 @@ static func ambient_gain_for(kind: StringName, purity: float, legacy_strength: f
 		_:
 			return 0.0
 
+static func cue_volume_db_for(master_volume: float, sfx_volume: float) -> float:
+	return (
+		linear_to_db(maxf(master_volume, 0.0001))
+		+ linear_to_db(maxf(sfx_volume, 0.0001))
+		+ CUE_GAIN_DB
+	)
+
+static func ambient_volume_db_for(gain: float, master_volume: float, ambient_volume: float) -> float:
+	if gain <= 0.0:
+		return AMBIENT_FLOOR_DB
+	var layer_db := maxf(AMBIENT_FLOOR_DB, linear_to_db(gain))
+	return maxf(
+		AMBIENT_FLOOR_DB,
+		linear_to_db(maxf(master_volume, 0.0001))
+			+ linear_to_db(maxf(ambient_volume, 0.0001))
+			+ layer_db
+	)
+
 func _update_ambient_levels() -> void:
 	if _ambient_players.is_empty():
 		return
-	var master_db := linear_to_db(maxf(_master_volume, 0.0001))
 	for kind: StringName in _ambient_players:
 		var gain := ambient_gain_for(kind, _purity, _legacy_strength, _veiled)
-		var layer_db := AMBIENT_FLOOR_DB if gain <= 0.0 else maxf(AMBIENT_FLOOR_DB, linear_to_db(gain))
 		var ambient_player := _ambient_players[kind] as AudioStreamPlayer
-		ambient_player.volume_db = maxf(AMBIENT_FLOOR_DB, master_db + layer_db)
+		ambient_player.volume_db = ambient_volume_db_for(gain, _master_volume, _ambient_volume)
 
 func _on_corruption_field_changed(_values: PackedFloat32Array, _width: int, _height: int, purity: float, _anchor: float) -> void:
 	_purity = clampf(purity, 0.0, 1.0)
