@@ -18,9 +18,9 @@ no new autoloads, no new signals beyond what a new setting needs, no rewrite of 
 
 | # | Milestone | Touches | Why it's cheap here |
 |---|---|---|---|
-| **M19a** | FOV / comfort slider | `player/player.tscn`, `player/player_controller.gd`, `autoload/settings_state.gd`, `ui/hud.gd` | Camera FOV is currently a fixed `92.0` in the scene file with no setting behind it at all — this is the single cheapest, most standard FPS comfort/accessibility option missing from the panel |
-| **M19b** | Independent SFX / ambient volume | `autoload/audio_director.gd`, `autoload/settings_state.gd`, `ui/hud.gd` | M18-audio-1/2 already split cue playback and ambient beds into two separate player pools (`_cue_players` vs `_ambient_players`) driven only by `master_volume` today — exposing independent multipliers for each is a read-site change, not new plumbing |
-| **M19c** | Colorblind-safe corruption palette | `world/shaders/corruption.gdshader`, `autoload/corruption_director.gd`, `autoload/settings_state.gd`, `ui/hud.gd` | `high_contrast` already proves the exact mechanism needed — a bool global shader parameter driving a `ternary` color swap in `corruption.gdshader`. This adds one more palette variant through the identical mechanism, not a new one |
+| **M19a** | FOV / comfort slider | `player/player.tscn`, `player/player_controller.gd`, `autoload/settings_state.gd`, `ui/hud.gd` | **Done** (PR #23, merged) — code-reviewed: `camera.fov` set from one line in the existing `_on_settings_changed()` handler, clamped 70–110, movement math untouched |
+| **M19b** | Independent SFX / ambient volume | `autoload/audio_director.gd`, `autoload/settings_state.gd`, `ui/hud.gd` | **Done** (PR #25, merged) — code-reviewed: `cue_volume_db_for()`/`ambient_volume_db_for()` are pure functions layering the new multipliers on top of the existing `master_volume` math without touching `ambient_gain_for()`'s contract; both new sliders default to `1.0`, a verified no-op |
+| **M19c** | Colorblind-safe corruption palette | `world/shaders/corruption.gdshader`, `autoload/corruption_director.gd`, `autoload/settings_state.gd`, `ui/hud.gd` | **Done** (PR #24, merged) — code-reviewed: `corruption_colorblind_safe` follows the exact `corruption_high_contrast` registration pattern; the Okabe-Ito override in the shader runs after the high-contrast ternary, so colorblind-safe correctly takes priority when both are on |
 
 **Explicitly not in this scope:** new gameplay systems, new content (chapters/missions/weapons), multiplayer.
 Those were the other options offered and not chosen. If balance retuning based on real playtest data becomes
@@ -154,3 +154,26 @@ aesthetic choice.
 Same standard as every round: plain pass/fail per verification item, name the specific file/function if
 something's wrong, real manual play check required for M19a/c (visual) and M19b (audio) — headless CI
 cannot verify any of these three end-to-end. One PR per sub-milestone.
+
+---
+
+## Outcome — all three merged
+
+All three PRs (#23 M19a, #24 M19c, #25 M19b) were independently code-reviewed (diffs pulled and read
+directly, not trusted from the handoff report) and merged into `main` in that order on 2026-08-12. All
+three were opened as independent sibling branches from the same base commit and all three touched
+`autoload/settings_state.gd`, `ui/hud.gd`, and `tests/run_tests.gd`, so only the first merge (#23) was
+conflict-free — #24 auto-merged cleanly (non-overlapping lines), #25 needed one small additive hand-resolve
+in `settings_state.gd::_normalize()` (both branches added a case to the same `match` statement). Every
+resolution was verified to retain all four new settings (`fov`, `sfx_volume`, `ambient_volume`,
+`colorblind_safe`) and both `.ps1`/`.sh` wrapper markers correctly land at 43. CI was re-run and confirmed
+green on each merge commit (not just the original per-branch runs) before merging the next PR, per the
+handoff's own caution.
+
+**Open items — not yet resolved, tracked here rather than assumed closed:**
+- M19a: subjective motion-comfort preference during a full mission — not yet confirmed by the user.
+- M19b: artistic balance at intermediate SFX/ambient slider values through a complete mission — not yet
+  confirmed by the user.
+- M19c: direct review by a player with a real color-vision deficiency (the Machado-simulation evidence is
+  strong but is still a simulation) — not yet confirmed by the user.
+- Carried over from Phase 2, still open: the M18-audio-2 full-mission subjective listen.
