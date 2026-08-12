@@ -133,6 +133,7 @@ func _on_game_started() -> void:
 
 func _on_settings_changed(values: Dictionary) -> void:
 	_mouse_sensitivity = float(values.get(&"mouse_sensitivity", 1.0))
+	camera.fov = float(values.get(&"fov", 92.0))
 	_screen_shake = float(values.get(&"screen_shake", 0.75))
 
 func _on_combat_feedback(kind: StringName, position: Vector3, _tint: Color, strength: float) -> void:
