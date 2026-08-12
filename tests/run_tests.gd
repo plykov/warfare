@@ -30,6 +30,7 @@ func _run() -> void:
 	_test_polish_cue_profiles()
 	_test_cue_asset_mapping()
 	_test_ambient_asset_mapping()
+	_test_audio_category_volumes()
 	_test_v2_save_migration()
 	_test_rank_doctrine_profiles()
 	_test_rank_world_readability()
@@ -53,7 +54,7 @@ func _run() -> void:
 	_test_corruption_shader_globals()
 	await get_tree().process_frame
 	if failures.is_empty():
-		print("GARDEN RECLAIMED TESTS: 42 passed")
+		print("GARDEN RECLAIMED TESTS: 43 passed")
 		AudioDirector.shutdown()
 		await get_tree().process_frame
 		get_tree().quit(0)
@@ -192,6 +193,11 @@ func _test_mission_objective_composition() -> void:
 
 func _test_settings_validation() -> void:
 	SettingsState._reset_for_test()
+	_assert(is_equal_approx(float(SettingsState.get_value(&"fov")), 92.0), "Field of view must default to the scene-authored 92 degree baseline")
+	_assert(SettingsState.set_value(&"fov", 69.0), "Field of view must accept settings updates")
+	_assert(is_equal_approx(float(SettingsState.get_value(&"fov")), 70.0), "Field of view must clamp to the 70 degree comfort minimum")
+	SettingsState.set_value(&"fov", 111.0)
+	_assert(is_equal_approx(float(SettingsState.get_value(&"fov")), 110.0), "Field of view must clamp to the 110 degree comfort maximum")
 	_assert(SettingsState.set_value(&"mouse_sensitivity", 99.0), "Known settings must accept updates")
 	_assert(is_equal_approx(float(SettingsState.get_value(&"mouse_sensitivity")), 2.5), "Aim sensitivity must clamp to its accessible range")
 	_assert(not SettingsState.set_value(&"unknown_setting", true), "Unknown settings must not enter the persisted schema")
@@ -243,7 +249,18 @@ func _test_new_game_plus() -> void:
 ## Image it writes to via set_pixel(), before the texture/RenderingServer
 ## layer is involved at all — sidesteps both unreliable round-trips.
 func _test_corruption_shader_globals() -> void:
+	SettingsState._reset_for_test()
 	CorruptionDirector._reset_for_test()
+	_assert(SettingsState.get_value(&"colorblind_safe") == false, "Colorblind-safe corruption must be opt-in so the existing palettes remain unchanged by default")
+	var shader_source := FileAccess.get_file_as_string("res://world/shaders/corruption.gdshader")
+	_assert(shader_source.contains("global uniform bool corruption_high_contrast;"), "The existing high-contrast shader global must remain registered in the shader")
+	_assert(shader_source.contains("global uniform bool corruption_colorblind_safe;"), "The colorblind-safe shader global must be declared in the corruption shader")
+	_assert(shader_source.contains("if (corruption_colorblind_safe)"), "The colorblind-safe palette must be an explicit override of the existing color paths")
+	SettingsState.set_value(&"high_contrast", true)
+	_assert(CorruptionDirector._shader_high_contrast and not CorruptionDirector._shader_colorblind_safe, "The existing high-contrast setting must still reach its shader-global CPU mirror independently")
+	SettingsState.set_value(&"colorblind_safe", true)
+	_assert(CorruptionDirector._shader_high_contrast and CorruptionDirector._shader_colorblind_safe, "The colorblind-safe setting must reach its shader-global CPU mirror without disabling high contrast")
+	SettingsState.reset_defaults()
 	_assert(CorruptionDirector._mask_texture is ImageTexture, "CorruptionDirector must build a shared corruption mask texture")
 	var image: Image = CorruptionDirector._mask_image
 	_assert(image != null and image.get_width() == CorruptionDirector.GRID_WIDTH and image.get_height() == CorruptionDirector.GRID_HEIGHT, "The corruption mask image must match the grid dimensions")
@@ -392,6 +409,24 @@ func _test_ambient_asset_mapping() -> void:
 	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"legacy", 0.0, 1.0, false), 0.0045), "Legacy bed must retain its original full-strength gain")
 	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"pure", 0.5, 1.0, true), 0.0015), "Veiled state must retain the original near-silent harmonic floor")
 	_assert(is_equal_approx(AudioDirector.ambient_gain_for(&"legacy", 1.0, 1.0, true), 0.0), "Veiled state must silence environmental and legacy beds")
+
+func _test_audio_category_volumes() -> void:
+	SettingsState._reset_for_test()
+	_assert(is_equal_approx(float(SettingsState.get_value(&"sfx_volume")), 1.0), "SFX volume must default to a no-op multiplier")
+	_assert(is_equal_approx(float(SettingsState.get_value(&"ambient_volume")), 1.0), "Ambient volume must default to a no-op multiplier")
+	SettingsState.set_value(&"sfx_volume", -1.0)
+	SettingsState.set_value(&"ambient_volume", 2.0)
+	_assert(is_zero_approx(float(SettingsState.get_value(&"sfx_volume"))), "SFX volume must clamp to zero")
+	_assert(is_equal_approx(float(SettingsState.get_value(&"ambient_volume")), 1.0), "Ambient volume must clamp to one")
+	var cue_default := AudioDirector.cue_volume_db_for(0.8, 1.0)
+	var ambient_default := AudioDirector.ambient_volume_db_for(0.0035, 0.8, 1.0)
+	_assert(is_equal_approx(cue_default, linear_to_db(0.8) + AudioDirector.CUE_GAIN_DB), "Default SFX volume must preserve the existing cue level")
+	_assert(is_equal_approx(ambient_default, linear_to_db(0.8) + linear_to_db(0.0035)), "Default ambient volume must preserve the existing bed level")
+	_assert(AudioDirector.cue_volume_db_for(0.8, 0.0) <= AudioDirector.AMBIENT_FLOOR_DB, "Zero SFX volume must drive cues to or below the audio floor")
+	_assert(is_equal_approx(AudioDirector.ambient_volume_db_for(0.0035, 0.8, 0.0), AudioDirector.AMBIENT_FLOOR_DB), "Zero ambient volume must drive beds to the audio floor")
+	_assert(cue_default > AudioDirector.AMBIENT_FLOOR_DB, "Ambient muting must not alter the independently calculated cue level")
+	_assert(ambient_default > AudioDirector.AMBIENT_FLOOR_DB, "SFX muting must not alter the independently calculated ambient level")
+	SettingsState._reset_for_test()
 
 func _test_v2_save_migration() -> void:
 	GameState._reset_for_test()
