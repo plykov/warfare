@@ -24,6 +24,8 @@ var last_spread_evaluated: int = 0
 ## M18a — shared corruption-mask shader. See world/shaders/corruption.gdshader.
 var _mask_image: Image
 var _mask_texture: ImageTexture
+var _shader_high_contrast: bool = false
+var _shader_colorblind_safe: bool = false
 
 func _ready() -> void:
 	EventBus.game_started.connect(_on_game_started)
@@ -52,11 +54,15 @@ func _register_shader_globals() -> void:
 	RenderingServer.global_shader_parameter_add(&"corruption_world_size", RenderingServer.GLOBAL_VAR_TYPE_VEC2, Vector2(GRID_WIDTH, GRID_HEIGHT) * CELL_SIZE)
 	RenderingServer.global_shader_parameter_add(&"corruption_pure_color", RenderingServer.GLOBAL_VAR_TYPE_VEC3, Vector3(0.035, 0.23, 0.075))
 	RenderingServer.global_shader_parameter_add(&"corruption_high_contrast", RenderingServer.GLOBAL_VAR_TYPE_BOOL, false)
+	RenderingServer.global_shader_parameter_add(&"corruption_colorblind_safe", RenderingServer.GLOBAL_VAR_TYPE_BOOL, false)
 	EventBus.settings_changed.connect(_on_settings_changed_for_shader)
 	_on_settings_changed_for_shader(SettingsState.values)
 
 func _on_settings_changed_for_shader(values: Dictionary) -> void:
-	RenderingServer.global_shader_parameter_set(&"corruption_high_contrast", bool(values.get(&"high_contrast", false)))
+	_shader_high_contrast = bool(values.get(&"high_contrast", false))
+	_shader_colorblind_safe = bool(values.get(&"colorblind_safe", false))
+	RenderingServer.global_shader_parameter_set(&"corruption_high_contrast", _shader_high_contrast)
+	RenderingServer.global_shader_parameter_set(&"corruption_colorblind_safe", _shader_colorblind_safe)
 
 func _publish_mask_texture() -> void:
 	for y: int in range(GRID_HEIGHT):
