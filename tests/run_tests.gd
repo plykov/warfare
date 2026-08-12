@@ -192,6 +192,11 @@ func _test_mission_objective_composition() -> void:
 
 func _test_settings_validation() -> void:
 	SettingsState._reset_for_test()
+	_assert(is_equal_approx(float(SettingsState.get_value(&"fov")), 92.0), "Field of view must default to the scene-authored 92 degree baseline")
+	_assert(SettingsState.set_value(&"fov", 69.0), "Field of view must accept settings updates")
+	_assert(is_equal_approx(float(SettingsState.get_value(&"fov")), 70.0), "Field of view must clamp to the 70 degree comfort minimum")
+	SettingsState.set_value(&"fov", 111.0)
+	_assert(is_equal_approx(float(SettingsState.get_value(&"fov")), 110.0), "Field of view must clamp to the 110 degree comfort maximum")
 	_assert(SettingsState.set_value(&"mouse_sensitivity", 99.0), "Known settings must accept updates")
 	_assert(is_equal_approx(float(SettingsState.get_value(&"mouse_sensitivity")), 2.5), "Aim sensitivity must clamp to its accessible range")
 	_assert(not SettingsState.set_value(&"unknown_setting", true), "Unknown settings must not enter the persisted schema")
