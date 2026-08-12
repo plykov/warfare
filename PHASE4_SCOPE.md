@@ -34,9 +34,9 @@ Current state, read directly from the code, not assumed:
 
 | # | Milestone | Touches | Why this order |
 |---|---|---|---|
-| **M20a** | Viewmodel arms/gauntlets | `player/player.tscn`, `weapons/weapon_manager.gd` | Pure geometry/material addition framing the existing weapon mesh — no new assets required, reuses `RankManifestation`'s bronze material approach; unblocks everything else visually before any asset sourcing starts |
-| **M20b** | Left-hand cast gesture | `weapons/weapon_manager.gd` or a new small `player/offhand_controller.gd`, wired via existing `EventBus` signals only | Depends on M20a's left arm/hand existing; purely a pose/animation state machine over signals that already fire, no new gameplay state |
-| **M20c** | Twelve distinct handheld weapon silhouettes | `weapons/weapon_manager.gd`, `assets/models/weapons/` | Depends on M20a's hand anchor point existing to attach props to; needs real asset sourcing (CC0), so it's sequenced after the free geometry work, same reasoning M18-art-1 before M18-art-2 used |
+| **M20a** | Viewmodel arms/gauntlets | `player/player.tscn`, `player/viewmodel_arms.gd` | **Done** (PR #26, merged) — code-reviewed: procedural `Node3D` under `WeaponManager`, `WeaponManager.gd` itself untouched, right-hand anchor lands within `0.0608` units of the existing weapon anchor (verified by hand-computing the math from the diff, not just trusting the claim), bronze material reuses `RankManifestation`'s exact color language |
+| **M20b** | Left-hand cast gesture | `player/offhand_controller.gd`, `player/viewmodel_arms.gd` | **Done** (PR #27, merged) — code-reviewed: state machine wired only to pre-existing `EventBus` signals (`prayer_started/stopped`, `declaration_issued/denied`, `law_enacted`, `combat_feedback`), no new signals added, lerp-toward-target idiom matches `weapon_manager.gd`'s existing `recoil` pattern |
+| **M20c** | Twelve distinct handheld weapon silhouettes | `weapons/weapon_manager.gd`, `weapons/weapon_viewmodel_catalog.gd`, `assets/models/weapons/` | **Done** (PR #28, merged) — code-reviewed: `_equip()`'s change is a one-line replacement of the old box-mesh branch; `WeaponViewmodelCatalog` covers all 12 `weapon_id`s in both its source-scene and transform dictionaries; KayKit Adventurers Pack CC0 `LICENSE.txt` verified bundled and redistributed, matching `THIRD_PARTY_LICENSES.md`'s entry |
 
 **Explicitly not in this scope:** melee swing/attack animations, weapon-specific firing VFX beyond what
 `combat_feedback`/`weapon_fired` already drive, any change to `WeaponResource` data or the 12 weapons'
@@ -156,3 +156,24 @@ Same standard as every round: plain pass/fail per verification item, real manual
 all three sub-milestones (this entire phase is visual-fidelity work, headless CI has nothing to say about
 any of it), one PR per sub-milestone. M20a should land and get a real play check before M20b/M20c start,
 since both depend on its arm/hand anchor geometry existing and looking right first.
+
+---
+
+## Outcome — all three merged
+
+PRs #26 (M20a), #27 (M20b), #28 (M20c) were code-reviewed (diffs pulled and read directly) and merged into
+`main` in that order on 2026-08-12. The stack was originally opened against `agent/m19a-fov-comfort` (i.e.
+only M19a, not the full Phase 3), so each branch needed `main` merged forward into it and its PR retargeted
+before merging — done sequentially, confirming a clean auto-merge with no conflicts at each step (M20's
+files don't overlap M19's), then waiting for a real green three-platform CI run on the resulting merge
+commit before proceeding to the next PR in the stack.
+
+**Open items — not yet resolved, tracked here rather than assumed closed:**
+- Whether the bronze/linen arm proportions feel right during a full player-controlled mission, not just in
+  controlled captures.
+- Whether the more symbolic KayKit silhouette mappings (Trumpet → wand, Key & Great Chain → arrow bundle,
+  Censer → shield badge, Chariot → spiked shield) read as intended, or whether some deserve more literal
+  bespoke replacements later — explicitly a later art-direction choice per the handoff, not a gap in this
+  milestone's completion.
+- Carried over, still open: the M18-audio-2 full-mission listen, and Phase 3's three comfort/balance/
+  color-vision confirmations (see `PHASE3_SCOPE.md`).
