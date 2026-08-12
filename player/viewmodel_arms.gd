@@ -18,6 +18,9 @@ func _ready() -> void:
 	_build_materials()
 	_build_right_arm()
 	_build_left_arm()
+	var offhand_controller := get_node_or_null("OffhandController") as OffhandController
+	if offhand_controller != null:
+		offhand_controller.initialize(self)
 
 func _build_materials() -> void:
 	_linen_material = StandardMaterial3D.new()
