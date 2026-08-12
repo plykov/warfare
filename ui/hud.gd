@@ -374,6 +374,7 @@ func _build_pause_overlay() -> void:
 	_add_slider_setting(stack, "SCREEN SHAKE", &"screen_shake", 0.0, 1.0, 0.05)
 	_add_slider_setting(stack, "UI SCALE", &"ui_scale", 0.85, 1.25, 0.05)
 	_add_toggle_setting(stack, "HIGH-CONTRAST CORRUPTION", &"high_contrast")
+	_add_toggle_setting(stack, "COLORBLIND-SAFE PALETTE", &"colorblind_safe")
 	_add_toggle_setting(stack, "REDUCED FLASH", &"reduced_flash")
 	_add_toggle_setting(stack, "SUBTITLES / FIELD MESSAGES", &"subtitles")
 	_add_difficulty_setting(stack)

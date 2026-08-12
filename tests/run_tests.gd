@@ -243,7 +243,18 @@ func _test_new_game_plus() -> void:
 ## Image it writes to via set_pixel(), before the texture/RenderingServer
 ## layer is involved at all — sidesteps both unreliable round-trips.
 func _test_corruption_shader_globals() -> void:
+	SettingsState._reset_for_test()
 	CorruptionDirector._reset_for_test()
+	_assert(SettingsState.get_value(&"colorblind_safe") == false, "Colorblind-safe corruption must be opt-in so the existing palettes remain unchanged by default")
+	var shader_source := FileAccess.get_file_as_string("res://world/shaders/corruption.gdshader")
+	_assert(shader_source.contains("global uniform bool corruption_high_contrast;"), "The existing high-contrast shader global must remain registered in the shader")
+	_assert(shader_source.contains("global uniform bool corruption_colorblind_safe;"), "The colorblind-safe shader global must be declared in the corruption shader")
+	_assert(shader_source.contains("if (corruption_colorblind_safe)"), "The colorblind-safe palette must be an explicit override of the existing color paths")
+	SettingsState.set_value(&"high_contrast", true)
+	_assert(CorruptionDirector._shader_high_contrast and not CorruptionDirector._shader_colorblind_safe, "The existing high-contrast setting must still reach its shader-global CPU mirror independently")
+	SettingsState.set_value(&"colorblind_safe", true)
+	_assert(CorruptionDirector._shader_high_contrast and CorruptionDirector._shader_colorblind_safe, "The colorblind-safe setting must reach its shader-global CPU mirror without disabling high contrast")
+	SettingsState.reset_defaults()
 	_assert(CorruptionDirector._mask_texture is ImageTexture, "CorruptionDirector must build a shared corruption mask texture")
 	var image: Image = CorruptionDirector._mask_image
 	_assert(image != null and image.get_width() == CorruptionDirector.GRID_WIDTH and image.get_height() == CorruptionDirector.GRID_HEIGHT, "The corruption mask image must match the grid dimensions")
