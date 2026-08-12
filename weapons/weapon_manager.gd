@@ -65,18 +65,7 @@ func _equip(index: int) -> void:
 	material.metallic = 0.72
 	material.roughness = 0.24
 	weapon_model.material_override = material
-	var mesh := BoxMesh.new()
-	if weapon.weapon_id in [&"flaming_sword", &"sickle", &"drawn_bow"]:
-		mesh.size = Vector3(0.04, 0.58, 0.04)
-		_rest_z = -0.9
-		weapon_model.position = Vector3(0.5, -0.4, _rest_z)
-		weapon_model.rotation = Vector3(-0.12, 0.0, -0.48)
-	else:
-		mesh.size = Vector3(0.15, 0.12, 0.54)
-		_rest_z = -0.95
-		weapon_model.position = Vector3(0.42, -0.34, _rest_z)
-		weapon_model.rotation = Vector3(-0.12, -0.05, 0.08)
-	weapon_model.mesh = mesh
+	_rest_z = WeaponViewmodelCatalog.apply_to(weapon_model, weapon.weapon_id)
 	EventBus.weapon_switched.emit(current_index, weapon.display_name)
 	EventBus.weapon_context_changed.emit("TIER %d // %s" % [_weapon_tier, weapon.role], weapon.counterplay)
 
