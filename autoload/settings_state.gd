@@ -5,8 +5,11 @@ const DEFAULTS := {
 	&"mouse_sensitivity": 1.0,
 	&"fov": 92.0,
 	&"master_volume": 0.8,
+	&"sfx_volume": 1.0,
+	&"ambient_volume": 1.0,
 	&"screen_shake": 0.75,
 	&"high_contrast": false,
+	&"colorblind_safe": false,
 	&"reduced_flash": false,
 	&"subtitles": true,
 	&"ui_scale": 1.0,
@@ -111,10 +114,10 @@ func _normalize(key: StringName, value: Variant) -> Variant:
 	match key:
 		&"mouse_sensitivity": return clampf(float(value), 0.35, 2.5)
 		&"fov": return clampf(float(value), 70.0, 110.0)
-		&"master_volume": return clampf(float(value), 0.0, 1.0)
+		&"master_volume", &"sfx_volume", &"ambient_volume": return clampf(float(value), 0.0, 1.0)
 		&"screen_shake": return clampf(float(value), 0.0, 1.0)
 		&"ui_scale": return clampf(float(value), 0.85, 1.25)
-		&"high_contrast", &"reduced_flash", &"subtitles": return bool(value)
+		&"high_contrast", &"colorblind_safe", &"reduced_flash", &"subtitles": return bool(value)
 		&"difficulty": return value if StringName(value) in DIFFICULTY_ORDER else &"skilled"
 	return value
 
