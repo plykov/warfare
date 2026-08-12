@@ -3,6 +3,7 @@ extends Node
 const SETTINGS_PATH := "user://garden_reclaimed_settings.cfg"
 const DEFAULTS := {
 	&"mouse_sensitivity": 1.0,
+	&"fov": 92.0,
 	&"master_volume": 0.8,
 	&"screen_shake": 0.75,
 	&"high_contrast": false,
@@ -109,6 +110,7 @@ func reset_defaults() -> void:
 func _normalize(key: StringName, value: Variant) -> Variant:
 	match key:
 		&"mouse_sensitivity": return clampf(float(value), 0.35, 2.5)
+		&"fov": return clampf(float(value), 70.0, 110.0)
 		&"master_volume": return clampf(float(value), 0.0, 1.0)
 		&"screen_shake": return clampf(float(value), 0.0, 1.0)
 		&"ui_scale": return clampf(float(value), 0.85, 1.25)
