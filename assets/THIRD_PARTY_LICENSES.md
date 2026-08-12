@@ -81,3 +81,24 @@ Each source page below was individually checked on 2026-08-10 and displayed the 
 - `assets/audio/ambient/legacy_bed.ogg`
   - Source: "glass chimes loop.flac" by arseniiv, https://freesound.org/people/arseniiv/sounds/260017/
   - License: Creative Commons Zero 1.0 Universal (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
+
+## KayKit Adventurers Character Pack 1.0
+
+- Source: https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0
+- Author/distributor: Kay Lousberg / KayKit (https://kaylousberg.com)
+- License: Creative Commons Zero 1.0 Universal (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/
+- Bundled license verified and redistributed at `assets/models/weapons/kaykit_adventurers/LICENSE.txt`
+- Files used from upstream `addons/kaykit_character_pack_adventures/Assets/gltf/`:
+  - `sword_2handed.gltf` and `.bin` (Flaming Sword)
+  - `smokebomb.gltf` and `.bin` (Live Coal)
+  - `wand.gltf` and `.bin` (Trumpet)
+  - `mug_full.gltf` and `.bin` (Bowl of Wrath)
+  - `axe_1handed.gltf` and `.bin` (Sickle)
+  - `arrow_bundle.gltf` and `.bin` (Key Chain)
+  - `shield_badge.gltf` and `.bin` (Censer)
+  - `shield_spikes.gltf` and `.bin` (Chariot)
+  - `staff.gltf` and `.bin` (Measuring Rod)
+  - `spellbook_open.gltf` and `.bin` (Inkhorn)
+  - `shield_round.gltf` and `.bin` (Millstone)
+  - `crossbow_2handed.gltf` and `.bin` (Drawn Bow)
+  - `barbarian_texture.png`, `knight_texture.png`, `mage_texture.png`, and `rogue_texture.png`
