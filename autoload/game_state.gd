@@ -16,16 +16,20 @@ const MISSION_PATHS: PackedStringArray = [
 	"res://missions/data/mission_09.tres",
 	"res://missions/data/mission_10.tres",
 	"res://missions/data/mission_11.tres",
-	"res://missions/data/mission_12.tres"
+	"res://missions/data/mission_12.tres",
+	"res://missions/data/mission_13.tres",
+	"res://missions/data/mission_14.tres",
+	"res://missions/data/mission_15.tres",
+	"res://missions/data/mission_16.tres"
 ]
-## M16 — missions after this index are post-campaign challenge trials, not
+## M16/M21 — missions after this index are post-campaign challenge trials, not
 ## the locked 8-commission arc. They reuse the Sevenfold Ascent arena
 ## (ChapterArena clamps chapter index to 7) and the final rank (RankSystem
-## clamps the same way) by design — see PHASE2_SCOPE.md.
+## clamps the same way) by design — see PHASE2_SCOPE.md and PHASE5_SCOPE.md.
 const CORE_CAMPAIGN_LENGTH: int = 8
 
-## M15 — New Game+. Available once every mission (core campaign + the M16
-## challenge trials) has been completed at least once. Each cycle stacks a
+## M15 — New Game+. Available once every mission (core campaign + both
+## challenge waves) has been completed at least once. Each cycle stacks a
 ## multiplier consumed by CorruptionDirector, EncounterDirector, and
 ## MissionDirector — no new mission fields, the same knob M13's difficulty
 ## setting already reads at those sites.

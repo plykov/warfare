@@ -106,7 +106,7 @@ func _test_rank_identity() -> void:
 	_assert(RankSystem.has_ophanim_dash(), "Seraph rank must retain Ophanim Dash")
 
 func _test_mission_catalog() -> void:
-	_assert(GameState.MISSION_PATHS.size() == 12, "Campaign must contain the eight core commissions plus four M16 challenge trials")
+	_assert(GameState.MISSION_PATHS.size() == 16, "Campaign must contain the eight core commissions plus eight challenge trials across M16 and M21")
 	var allowed := [&"PURIFY_ZONE", &"RESTORE_THIN_PLACE", &"BIND_TARGET", &"SURVIVE_WAVES", &"ESCORT_HOST", &"BREAK_IDOL"]
 	for i: int in range(GameState.MISSION_PATHS.size()):
 		var mission := load(GameState.MISSION_PATHS[i]) as MissionResource
@@ -137,7 +137,7 @@ func _test_campaign_content_completeness() -> void:
 	_assert(objective_coverage.size() == 6, "Missions 02-08 must exercise all six locked objective primitives")
 	_assert(content_fingerprints.size() == 7, "Missions 02-08 must remain seven distinct authored data records")
 
-## M16 — post-campaign challenge trials (missions 09-12). Same completeness
+## M16/M21 — post-campaign challenge trials (missions 09-16). Same completeness
 ## bar as the core campaign, verified separately so the M11 assertions above
 ## stay a pure historical record of the locked 8-commission arc.
 func _test_challenge_missions() -> void:
@@ -145,23 +145,25 @@ func _test_challenge_missions() -> void:
 	var content_fingerprints: Dictionary = {}
 	for index: int in range(GameState.CORE_CAMPAIGN_LENGTH, GameState.MISSION_PATHS.size()):
 		var mission := load(GameState.MISSION_PATHS[index]) as MissionResource
-		_assert(mission != null, "M16 challenge trials must remain loadable data resources")
+		_assert(mission != null, "Post-campaign challenge trials must remain loadable data resources")
 		if mission == null:
 			continue
-		_assert(not mission.title.is_empty() and not mission.briefing.is_empty() and not mission.scripture_reference.is_empty(), "Every M16 challenge trial must author title, briefing, and reference content")
-		_assert(mission.intercessor_cues_are_valid() and mission.intercessor_cue_times.size() >= 3, "Every M16 challenge trial must author a complete voice timeline")
+		_assert(not mission.title.is_empty() and not mission.briefing.is_empty() and not mission.scripture_reference.is_empty(), "Every challenge trial must author title, briefing, and reference content")
+		_assert(mission.intercessor_cues_are_valid() and mission.intercessor_cue_times.size() >= 3, "Every challenge trial must author a complete voice timeline")
 		for line: String in mission.intercessor_cue_lines:
 			_assert(not line.is_empty(), "Authored Intercessor cues must never contain blank dialogue")
 		for objective_id: String in mission.objective_ids:
-			_assert(StringName(objective_id) in [&"PURIFY_ZONE", &"RESTORE_THIN_PLACE", &"BIND_TARGET", &"SURVIVE_WAVES", &"ESCORT_HOST", &"BREAK_IDOL"], "M16 challenge trials must reuse the six locked objective primitives, not a new one")
+			_assert(StringName(objective_id) in [&"PURIFY_ZONE", &"RESTORE_THIN_PLACE", &"BIND_TARGET", &"SURVIVE_WAVES", &"ESCORT_HOST", &"BREAK_IDOL"], "Challenge trials must reuse the six locked objective primitives, not a new one")
 			objective_coverage[StringName(objective_id)] = true
 		var fingerprint: String = "%s/%s/%s" % [mission.mission_id, mission.corruption_pattern, mission.objective_ids]
 		content_fingerprints[fingerprint] = true
-	_assert(content_fingerprints.size() == 4, "There must be exactly four distinct authored challenge trials")
-	_assert(objective_coverage.size() >= 4, "Challenge trials must exercise a meaningful spread of objective primitives")
+	_assert(content_fingerprints.size() == 8, "There must be exactly eight distinct authored challenge trials across M16 and M21")
+	_assert(objective_coverage.size() == 6, "The two challenge waves must exercise all six locked objective primitives")
 	EventBus.mission_selected.emit(GameState.CORE_CAMPAIGN_LENGTH, load(GameState.MISSION_PATHS[GameState.CORE_CAMPAIGN_LENGTH]))
 	_assert(RankSystem.rank_index == 7, "Challenge trials must manifest ARIEL at the final rank, ONE OF THE SEVEN")
 	_assert(ChapterArena.recipe_for(GameState.CORE_CAMPAIGN_LENGTH).size() == ChapterArena.recipe_for(7).size(), "Challenge trials must reuse the Sevenfold Ascent arena recipe rather than requiring new geometry")
+	for index: int in range(12, GameState.MISSION_PATHS.size()):
+		_assert(ChapterArena.recipe_for(index).size() == ChapterArena.recipe_for(7).size(), "M21 mission index %d must clamp to the Sevenfold Ascent arena" % index)
 	GameState._reset_for_test()
 
 func _test_campaign_unlock_and_rank() -> void:
@@ -221,7 +223,7 @@ func _test_key_rebinding() -> void:
 	SettingsState.reset_key_binds()
 	_assert(SettingsState.key_label_for_action(&"jump") == default_label, "Reset must restore the default key binding")
 
-## M15 — New Game+. Available only once every mission (core + M16 trials)
+## M15 — New Game+. Available only once every mission (core + challenge waves)
 ## has been cleared; a cycle resets unlock/completion state but raises the
 ## multiplier CorruptionDirector/EncounterDirector/MissionDirector read.
 func _test_new_game_plus() -> void:
@@ -316,7 +318,7 @@ func _test_boss_catalog() -> void:
 			bosses += 1
 			_assert(not mission.boss_name.is_empty(), "Boss commissions must name their territorial prince")
 			_assert(mission.boss_trigger_seconds > 0.0 or mission.boss_trigger_purity > 0.0, "Boss commissions must define a deterministic trigger")
-	_assert(bosses == 5, "The campaign must contain the three original boss commissions plus the two M16 challenge trial bosses")
+	_assert(bosses == 7, "The campaign must contain the three original bosses, two M16 bosses, and two M21 bosses")
 
 func _test_pause_lifecycle() -> void:
 	GameState._reset_for_test()
@@ -568,7 +570,7 @@ func _test_authored_corruption_layouts() -> void:
 		]
 		signatures[signature] = true
 	_assert(patterns.size() == 8, "The eight corruption pattern archetypes must all remain represented across the campaign")
-	_assert(signatures.size() == GameState.MISSION_PATHS.size(), "Every commission, including M16 challenge trials, must own a distinct deterministic corruption layout")
+	_assert(signatures.size() == GameState.MISSION_PATHS.size(), "Every commission, including both challenge waves, must own a distinct deterministic corruption layout")
 
 func _test_intercessor_timeline() -> void:
 	GameState._reset_for_test()

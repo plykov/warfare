@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"THE_LAST_MEASURE"
+corruption_pattern = "SHATTERED"
+corruption_seed = 1616
+intercessor_cue_times = PackedFloat32Array(4, 28, 62, 104, 142)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "DECLARE", "LEGISLATE", "PRAY")
+intercessor_cue_arguments = PackedStringArray("", "", "", "GROUND_HOLDS", "")
+intercessor_cue_durations = PackedFloat32Array(0, 12, 0, 0, 12)
+intercessor_cue_lines = PackedStringArray("The throne has measured every reclaimed garden and found only what it can devour. Answer with the commission, not yourself.", "All six burdens remain before you. I am praying; take them in their proper order.", "The final declaration of this trial wave is given. Draw the throne into judgment.", "The ground holds beneath every verb: reclaim, restore, endure, receive, bind, and break.", "The measure is almost full. I will not cease until the devouring throne is overthrown.")
+chapter = 16
+title = "The Last Measure"
+briefing = "The capstone of the second trial wave. Every locked objective returns under a devouring throne: reclaim, restore, endure, receive, bind, and break, then overthrow what weighed the gardens as prey."
+scripture_reference = "Revelation 11:1–2"
+objective_ids = PackedStringArray("PURIFY_ZONE", "RESTORE_THIN_PLACE", "SURVIVE_WAVES", "ESCORT_HOST", "BIND_TARGET", "BREAK_IDOL")
+target_purity = 0.68
+fail_corruption = 0.78
+restore_integrity = 96.0
+starting_thin_integrity = 18.0
+survive_seconds = 150.0
+time_limit = 300.0
+starting_demons = 18
+enemy_budget = 28
+spawn_interval = 1.4
+fallen_trigger = 0.14
+synthetic_trigger = 0.18
+corruption_bias = 0.18
+enemy_power = 1.35
+boss_kind = &"THE_DEVOURING_THRONE"
+boss_name = "THE THRONE THAT MEASURES TO DEVOUR"
+boss_trigger_seconds = 58.0
+boss_power = 1.7
+garden_color = Color(0.13, 0.16, 0.065, 1)
+fog_color = Color(0.085, 0.025, 0.035, 1)
+accent_color = Color(1, 0.76, 0.2, 1)

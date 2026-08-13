@@ -31,7 +31,7 @@ declare -a MARKERS=(
 	"GARDEN RECLAIMED TESTS: 43 passed"
 	"GARDEN RECLAIMED SMOKE: gameplay ran 300 frames"
 	"GARDEN RECLAIMED CAMPAIGN SMOKE: final commission mixed encounter ran 360 frames"
-	"GARDEN RECLAIMED BALANCE SIM: 12 commissions x 3 profiles passed"
+	"GARDEN RECLAIMED BALANCE SIM: 16 commissions x 3 profiles passed"
 )
 
 for i in "${!NAMES[@]}"; do
