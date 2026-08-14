@@ -3,11 +3,13 @@ extends Node3D
 
 const CHAPTER_LABELS: PackedStringArray = [
 	"FOUNDATION COURT", "WATCHER STEPS", "BROKEN CAUSEWAY", "REBUKE SHARDS",
-	"ALTAR TERRACES", "MANY-VOICED RING", "HEAVENLY BATTLEMENT", "SEVENFOLD ASCENT"
+	"ALTAR TERRACES", "MANY-VOICED RING", "HEAVENLY BATTLEMENT", "SEVENFOLD ASCENT",
+	"COVENANT GAUNTLET"
 ]
 const CHAPTER_TINTS: Array[Color] = [
 	Color(0.26, 0.34, 0.24), Color(0.18, 0.34, 0.38), Color(0.42, 0.25, 0.16), Color(0.31, 0.18, 0.4),
-	Color(0.48, 0.25, 0.08), Color(0.18, 0.25, 0.45), Color(0.38, 0.16, 0.36), Color(0.5, 0.22, 0.14)
+	Color(0.48, 0.25, 0.08), Color(0.18, 0.25, 0.45), Color(0.38, 0.16, 0.36), Color(0.5, 0.22, 0.14),
+	Color(0.12, 0.38, 0.3)
 ]
 const ARENA_WALL_MODEL: PackedScene = preload("res://assets/models/arena/castle_wall_half_modular.glb")
 const ARENA_COLUMN_MODEL: PackedScene = preload("res://assets/models/arena/castle_tower_square_mid.glb")
@@ -27,7 +29,7 @@ func _ready() -> void:
 	rebuild(0)
 
 func rebuild(index: int) -> void:
-	chapter_index = clampi(index, 0, 7)
+	chapter_index = clampi(index, 0, CHAPTER_LABELS.size() - 1)
 	for child: Node in get_children():
 		child.queue_free()
 	var tint: Color = CHAPTER_TINTS[chapter_index]
@@ -35,8 +37,20 @@ func rebuild(index: int) -> void:
 		_add_structure(definition.position, definition.size, tint, float(definition.get("glow", 0.0)))
 	EventBus.message_posted.emit("ARENA FORMED // %s" % CHAPTER_LABELS[chapter_index], &"info")
 
+## M22 — every mission authors a 1-based `chapter` field (MissionResource).
+## RankSystem and ChapterLandmark already select by this field, clamped
+## against their own roster size; ChapterArena now follows the same pattern
+## instead of the raw mission-catalog index, so post-campaign challenge
+## trials (chapter 9+) land on the dedicated Covenant Gauntlet recipe rather
+## than clamping into the core campaign's finale chapter.
+static func chapter_index_for(mission: Resource) -> int:
+	var mission_data := mission as MissionResource
+	if mission_data == null:
+		return 0
+	return clampi(mission_data.chapter - 1, 0, CHAPTER_LABELS.size() - 1)
+
 static func recipe_for(index: int) -> Array[Dictionary]:
-	match clampi(index, 0, 7):
+	match clampi(index, 0, CHAPTER_LABELS.size() - 1):
 		0:
 			return [
 				_box(Vector3(-10, 0.25, -7), Vector3(5, 0.5, 4)), _box(Vector3(10, 0.25, -7), Vector3(5, 0.5, 4)),
@@ -80,7 +94,7 @@ static func recipe_for(index: int) -> Array[Dictionary]:
 				_box(Vector3(0, 0.35, -17), Vector3(8, 0.7, 3)), _box(Vector3(0, 0.85, -19), Vector3(5, 1.7, 2), 0.8),
 				_box(Vector3(0, 1.7, -21), Vector3(2, 3.4, 2), 1.0)
 			]
-		_:
+		7:
 			var ascent: Array[Dictionary] = []
 			for i: int in range(7):
 				var height: float = 0.45 + i * 0.24
@@ -88,6 +102,26 @@ static func recipe_for(index: int) -> Array[Dictionary]:
 			ascent.append(_box(Vector3(0, 1.35, -20), Vector3(5, 2.7, 4), 0.7))
 			ascent.append(_box(Vector3(0, 0.3, -17), Vector3(4, 0.6, 3)))
 			return ascent
+		_:
+			return _covenant_gauntlet()
+
+## M22 — the dedicated post-campaign challenge-trial arena. A rectangular
+## testing ground rather than any single chapter's narrative set piece, since
+## all eight challenge trials (M16 + M21) share this space: four witness
+## towers at the corners, paired gate platforms on the north/south approach
+## axis, alternating cover walls on the east/west axis, and four inner
+## measuring posts closer to (but still clear of) the central Thin Place.
+static func _covenant_gauntlet() -> Array[Dictionary]:
+	return [
+		_box(Vector3(-16, 2.2, -16), Vector3(3, 4.4, 3), 0.9), _box(Vector3(16, 2.2, -16), Vector3(3, 4.4, 3), 0.9),
+		_box(Vector3(-16, 2.2, 16), Vector3(3, 4.4, 3), 0.9), _box(Vector3(16, 2.2, 16), Vector3(3, 4.4, 3), 0.9),
+		_box(Vector3(-4, 0.3, -19), Vector3(3.2, 0.6, 3.2), 0.3), _box(Vector3(4, 0.3, -19), Vector3(3.2, 0.6, 3.2), 0.3),
+		_box(Vector3(-4, 0.3, 19), Vector3(3.2, 0.6, 3.2), 0.3), _box(Vector3(4, 0.3, 19), Vector3(3.2, 0.6, 3.2), 0.3),
+		_box(Vector3(-19, 1.1, -6), Vector3(2, 2.2, 6)), _box(Vector3(19, 1.1, -6), Vector3(2, 2.2, 6)),
+		_box(Vector3(-19, 1.1, 6), Vector3(2, 2.2, 6)), _box(Vector3(19, 1.1, 6), Vector3(2, 2.2, 6)),
+		_box(Vector3(-8, 1.3, 0), Vector3(1.2, 2.6, 1.2), 0.5), _box(Vector3(8, 1.3, 0), Vector3(1.2, 2.6, 1.2), 0.5),
+		_box(Vector3(0, 1.3, -8), Vector3(1.2, 2.6, 1.2), 0.5), _box(Vector3(0, 1.3, 8), Vector3(1.2, 2.6, 1.2), 0.5)
+	]
 
 static func _paired_steps(left: Vector3, right: Vector3) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
@@ -235,5 +269,5 @@ func _add_structure(at: Vector3, size: Vector3, tint: Color, glow: float) -> voi
 	body.add_child(visual)
 	add_child(body)
 
-func _on_mission_selected(index: int, _mission: Resource) -> void:
-	rebuild(index)
+func _on_mission_selected(_index: int, mission: Resource) -> void:
+	rebuild(chapter_index_for(mission))
