@@ -159,7 +159,7 @@ func _build_title() -> void:
 	accessibility.custom_minimum_size = Vector2(330, 44)
 	accessibility.pressed.connect(func() -> void: pause_overlay.visible = true)
 	panel.add_child(accessibility)
-	## M15 — New Game+. Hidden until every mission (core + M16 trials) has
+	## M15 — New Game+. Hidden until every mission (core + challenge waves) has
 	## been cleared once; see GameState.ng_plus_available().
 	new_game_plus_button = Button.new()
 	new_game_plus_button.text = "BEGIN NEW GAME+"

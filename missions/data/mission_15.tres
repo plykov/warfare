@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"THE_BURDEN_OF_THE_HOST"
+corruption_pattern = "TWIN_FRONTS"
+corruption_seed = 1515
+intercessor_cue_times = PackedFloat32Array(4, 26, 58, 96)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "DECLARE", "PRAY")
+intercessor_cue_arguments = PackedStringArray("", "", "", "")
+intercessor_cue_durations = PackedFloat32Array(0, 11, 0, 12)
+intercessor_cue_lines = PackedStringArray("The Host comes carrying those who could not cross either front alone. Make room for them.", "Receive help without presumption. I am praying for their passage and your restraint.", "The word is given to bind what hunts the procession. Use it before the fronts close.", "They are nearly through. Restore the anchor and keep the garden open behind them.")
+chapter = 15
+title = "The Burden of the Host"
+briefing = "Twin fronts close around a Host procession. Receive the Host through prayer, bind its pursuer, restore the Thin Place, and reclaim enough ground to leave a living road behind."
+scripture_reference = "Galatians 6:2"
+objective_ids = PackedStringArray("ESCORT_HOST", "PURIFY_ZONE", "RESTORE_THIN_PLACE", "BIND_TARGET")
+target_purity = 0.42
+fail_corruption = 0.8
+restore_integrity = 94.0
+starting_thin_integrity = 22.0
+time_limit = 250.0
+starting_demons = 17
+enemy_budget = 32
+spawn_interval = 1.5
+fallen_trigger = 0.16
+synthetic_trigger = 0.34
+corruption_bias = 0.18
+enemy_power = 1.55
+garden_color = Color(0.055, 0.16, 0.15, 1)
+fog_color = Color(0.035, 0.085, 0.12, 1)
+accent_color = Color(0.32, 0.82, 0.88, 1)
