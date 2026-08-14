@@ -114,6 +114,8 @@ func _test_mission_catalog() -> void:
 		if mission == null:
 			continue
 		_assert(mission.chapter == i + 1, "Mission chapter ordering must be stable")
+		var expected_arena: int = i if i < GameState.CORE_CAMPAIGN_LENGTH else ChapterArena.CHAPTER_LABELS.size() - 1
+		_assert(ChapterArena.chapter_index_for(mission) == expected_arena, "Mission %d must select arena index %d" % [i + 1, expected_arena])
 		for objective_id: String in mission.objective_ids:
 			_assert(StringName(objective_id) in allowed, "Mission objectives must use one of the six primitives")
 
@@ -161,9 +163,15 @@ func _test_challenge_missions() -> void:
 	_assert(objective_coverage.size() == 6, "The two challenge waves must exercise all six locked objective primitives")
 	EventBus.mission_selected.emit(GameState.CORE_CAMPAIGN_LENGTH, load(GameState.MISSION_PATHS[GameState.CORE_CAMPAIGN_LENGTH]))
 	_assert(RankSystem.rank_index == 7, "Challenge trials must manifest ARIEL at the final rank, ONE OF THE SEVEN")
-	_assert(ChapterArena.recipe_for(GameState.CORE_CAMPAIGN_LENGTH).size() == ChapterArena.recipe_for(7).size(), "Challenge trials must reuse the Sevenfold Ascent arena recipe rather than requiring new geometry")
-	for index: int in range(12, GameState.MISSION_PATHS.size()):
-		_assert(ChapterArena.recipe_for(index).size() == ChapterArena.recipe_for(7).size(), "M21 mission index %d must clamp to the Sevenfold Ascent arena" % index)
+	## M22 — challenge trials now render the dedicated Covenant Gauntlet arena
+	## (selected by MissionResource.chapter, not the raw catalog index), a
+	## real ninth recipe distinct from the core campaign's Sevenfold Ascent.
+	var covenant_gauntlet_index: int = ChapterArena.CHAPTER_LABELS.size() - 1
+	_assert(covenant_gauntlet_index == 8, "The dedicated challenge-trial arena must be the ninth chapter")
+	_assert(ChapterArena.recipe_for(covenant_gauntlet_index) != ChapterArena.recipe_for(7), "Covenant Gauntlet must be distinct geometry, not a reuse of Sevenfold Ascent")
+	for index: int in range(GameState.CORE_CAMPAIGN_LENGTH, GameState.MISSION_PATHS.size()):
+		var challenge_mission := load(GameState.MISSION_PATHS[index]) as MissionResource
+		_assert(ChapterArena.chapter_index_for(challenge_mission) == covenant_gauntlet_index, "Every post-campaign challenge trial must select the dedicated Covenant Gauntlet arena")
 	GameState._reset_for_test()
 
 func _test_campaign_unlock_and_rank() -> void:
@@ -544,15 +552,17 @@ func _test_support_authority_interactions() -> void:
 	IntercessorSystem._reset_for_test()
 
 func _test_chapter_arena_recipes() -> void:
+	_assert(ChapterArena.CHAPTER_LABELS.size() == 9, "The roster must contain the eight core chapters plus the dedicated challenge-trial arena")
+	_assert(ChapterArena.CHAPTER_TINTS.size() == 9, "Every chapter label must own a matching tint")
 	var fingerprints: Dictionary = {}
-	for chapter: int in range(8):
+	for chapter: int in range(ChapterArena.CHAPTER_LABELS.size()):
 		var recipe: Array[Dictionary] = ChapterArena.recipe_for(chapter)
 		_assert(recipe.size() >= 4, "Every campaign chapter must author meaningful traversable geometry")
 		fingerprints[JSON.stringify(recipe)] = true
 		for definition: Dictionary in recipe:
 			var at: Vector3 = definition.position
 			_assert(Vector2(at.x, at.z).length() > 4.0, "Chapter geometry must keep the central Thin Place clear")
-	_assert(fingerprints.size() == 8, "All eight chapters must form a distinct arena silhouette")
+	_assert(fingerprints.size() == 9, "All nine chapters must form a distinct arena silhouette")
 
 func _test_authored_corruption_layouts() -> void:
 	var patterns: Dictionary = {}

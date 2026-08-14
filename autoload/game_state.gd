@@ -23,9 +23,10 @@ const MISSION_PATHS: PackedStringArray = [
 	"res://missions/data/mission_16.tres"
 ]
 ## M16/M21 — missions after this index are post-campaign challenge trials, not
-## the locked 8-commission arc. They reuse the Sevenfold Ascent arena
-## (ChapterArena clamps chapter index to 7) and the final rank (RankSystem
-## clamps the same way) by design — see PHASE2_SCOPE.md and PHASE5_SCOPE.md.
+## the locked 8-commission arc. They render in the dedicated Covenant Gauntlet
+## arena (ChapterArena selects by MissionResource.chapter, clamped to the 9th
+## recipe) and manifest the final rank (RankSystem clamps the same way) by
+## design — see PHASE2_SCOPE.md, PHASE5_SCOPE.md, and PHASE6_SCOPE.md.
 const CORE_CAMPAIGN_LENGTH: int = 8
 
 ## M15 — New Game+. Available once every mission (core campaign + both
