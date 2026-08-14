@@ -40,7 +40,7 @@ second time, on schedule with how this project already scales content.
 
 | # | Milestone | Touches | Why it's cheap here |
 |---|---|---|---|
-| **M21** | Second challenge-trial pack | `missions/data/mission_13..16.tres`, `autoload/game_state.gd` (`MISSION_PATHS` extended) | Zero new engine code — same reasoning M16 already proved for missions 9-12: content only, composed from the 6 existing objective primitives, no new arena geometry, at most one new data-only boss |
+| **M21** | Second challenge-trial pack | `missions/data/mission_13..16.tres`, `autoload/game_state.gd` (`MISSION_PATHS` extended) | **Done** (PR #29, merged) — code-reviewed: the diff touches exactly the 11 files claimed, `chapter_arena.gd`/`missions/objectives/`/`territorial_prince.gd`/`mission_resource.gd`/`mission_director.gd` are genuinely absent (confirmed directly, not just claimed), all four missions' `objective_ids` draw strictly from the 6 locked primitives, `CORE_CAMPAIGN_LENGTH` stays 8, the new boss (`THE_DEVOURING_THRONE`) is pure `MissionResource` data, and the new test loop explicitly verifies indices 12-15 clamp to chapter 7 |
 
 **Explicitly not in this scope:** a 9th arena chapter (would need new `recipe_for()` geometry and break the
 `fingerprints.size() == 8` test contract — a real decision to reopen, not assumed here), a 7th objective
@@ -102,3 +102,17 @@ Same standard as every round: plain pass/fail per verification item, name the sp
 something's wrong, real manual play check required (balance/pacing is a felt judgment headless CI cannot
 make), one PR for the whole M21 pack is fine here since it's a single coherent content wave, unlike the
 prior phases' independent-technique sub-milestones.
+
+---
+
+## Outcome — merged
+
+PR #29 was code-reviewed (diff pulled and read directly) and merged into `main` on 2026-08-14, on explicit
+user instruction to proceed ahead of the subjective playthrough.
+
+**Open item — not yet resolved, tracked here rather than assumed closed:** no human-controlled playthrough
+of missions 13-16 has happened yet. The report's own scripted playcheck confirmed the systems work (both
+bosses reach phase 2, all objective counts match, arena/rank/cues render correctly) but explicitly said this
+is not a substitute for a felt pacing/difficulty judgment. If tuning ends up wanted after playing them, it
+should stay inside the four `.tres` resources per the scope's original constraint — no new arena, objective,
+or boss code path as a shortcut.
