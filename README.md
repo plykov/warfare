@@ -4,14 +4,29 @@ A playable Godot 4.4 campaign slice of a Quake-style territorial FPS where death
 
 You are **ARIEL**, a Seraph-class servant-warrior. Incoming damage drains Glory instead of health. At zero Glory ARIEL becomes **Veiled**: slower, dimmed, and unable to purify the garden. Corruption keeps spreading, and the mission fails only if it reclaims the Thin Place at the garden's heart.
 
-## Phase 2 (in progress) — see `PHASE2_SCOPE.md`
+## Phase 2–6 — Content, Fidelity, and Accessibility (complete)
 
-- Difficulty select (Novice/Skilled/Expert) now drives corruption spread rate and territorial pressure, exposing the same profiles `tests/balance_sim.gd` already balances.
-- Movement, prayer, and authority keys are rebindable from the pause menu and persist alongside existing accessibility settings.
-- Four post-campaign challenge trials (Commissions 09–12) extend the campaign past The Seventh Stands, all reusing the six locked objective primitives and the Sevenfold Ascent arena.
-- New Game+ unlocks once every commission (core campaign + challenge trials) has been cleared once; each cycle raises corruption spread, territorial pressure, and the anchor-fail threshold.
+See `PHASE2_SCOPE.md` through `PHASE6_SCOPE.md` for the full milestone-by-milestone record, including what
+each round independently verified before merging.
+
+- Difficulty select (Novice/Skilled/Expert) drives corruption spread rate and territorial pressure, exposing
+  the same profiles `tests/balance_sim.gd` already balances. New Game+ unlocks once every commission across
+  both challenge waves has been cleared once; each cycle raises corruption spread, territorial pressure, and
+  the anchor-fail threshold.
+- Movement, prayer, and authority keys are rebindable from the pause menu. Accessibility settings now also
+  include a field-of-view comfort slider, independent SFX and ambient-bed volume, and an Okabe–Ito
+  colorblind-safe corruption palette alongside the existing high-contrast/reduced-flash/subtitle options.
+- A full CC0-sourced art and audio pass replaced every placeholder: real foliage, arena architecture, and
+  weapon models; pooled cue SFX and five crossfaded ambient beds replacing procedural synthesis; a
+  purity-reactive sky and shared corruption-mask shader across every surface.
+- ARIEL's first-person view now has real bronze-gauntlet viewmodel arms with an EventBus-driven off-hand
+  cast/pray/deflect gesture, and each of the twelve manifestations has its own distinct handheld silhouette
+  instead of a tinted placeholder box.
+- Eight post-campaign challenge trials (Commissions 09–16, across two trial waves) extend the campaign past
+  The Seventh Stands, remixing the six locked objective primitives at higher pressure. They render in a
+  dedicated ninth arena, the Covenant Gauntlet, rather than reusing the core campaign's finale chapter.
 - Linux and macOS export presets and CI legs join the existing Windows pipeline.
-- CI runs 39 deterministic tests.
+- CI runs 43 deterministic tests plus a 16-commission × 3-profile balance matrix.
 
 ## v0.7.0 — The Full Commission
 
@@ -74,7 +89,11 @@ Open `project.godot` in Godot 4.4.1 and run the project, or download the Windows
 - `F` reveals tactical state; `Esc` pauses and opens accessibility settings
 - `X` invokes Sevenfold Judgment at the final rank; backtick opens the field console
 
-The core campaign is eight data-driven commissions using six locked objective primitives: Purify Zone, Restore Thin Place, Bind Target, Survive Waves, Escort Host, and Break Idol. Each chapter changes ARIEL's manifested rank, objectives, enemy mix, pressure, palette, landmark, and scripture framing. Four post-campaign challenge trials (Commissions 09–12) extend the run past The Seventh Stands, remixing the same six primitives at higher pressure; clearing all twelve unlocks New Game+.
+The pause menu's accessibility panel covers aim sensitivity, field of view, master/SFX/ambient volume,
+screen shake, UI scale, high-contrast and colorblind-safe corruption palettes, reduced flash, subtitles,
+difficulty, and full key rebinding.
+
+The core campaign is eight data-driven commissions using six locked objective primitives: Purify Zone, Restore Thin Place, Bind Target, Survive Waves, Escort Host, and Break Idol. Each chapter changes ARIEL's manifested rank, objectives, enemy mix, pressure, palette, landmark, and scripture framing. Eight post-campaign challenge trials (Commissions 09–16, across two trial waves) extend the run past The Seventh Stands, remixing the same six primitives at higher pressure in a dedicated ninth arena, the Covenant Gauntlet; clearing all sixteen unlocks New Game+.
 
 Progress and settings are saved automatically. Completed commissions unlock the next chapter and preserve that commission's exact restored ground and enacted laws. Existing v0.1 and v0.2 progress migrates automatically to save schema v3.
 
@@ -91,10 +110,16 @@ Progress and settings are saved automatically. Completed commissions unlock the 
 
 ### Post-campaign challenge trials
 
+All eight trials render in the Covenant Gauntlet, a dedicated arena distinct from any core-campaign chapter.
+
 9. The Unquenched Watch — hold the Thin Place through wave after wave with no delay to hide behind.
 10. The Binding Trial — a Fallen mirror and a fabricated idol contest the same ground at once.
 11. The Long Siege — two fronts converge on the anchor and do not relent.
-12. Every Word Fulfilled — the capstone: every objective verb, together, at full weight.
+12. Every Word Fulfilled — the first capstone: every objective verb, together, at full weight.
+13. The Narrow Remnant — reclaim a hard inner remnant and bind the Fallen that names retreat as wisdom.
+14. The Furnace at Noon — restore a wounded anchor, break a fabricated idol, and endure the full watch.
+15. The Burden of the Host — receive, bind, restore, and reclaim enough ground for a Host procession.
+16. The Last Measure — the second capstone: every locked objective returns under a devouring throne.
 
 ## Windows / Linux / macOS builds
 
