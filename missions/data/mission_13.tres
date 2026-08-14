@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"THE_NARROW_REMNANT"
+corruption_pattern = "SPIRAL"
+corruption_seed = 1313
+intercessor_cue_times = PackedFloat32Array(4, 24, 52, 88)
+intercessor_cue_actions = PackedStringArray("VOICE", "DECLARE", "LEGISLATE", "PRAY")
+intercessor_cue_arguments = PackedStringArray("", "", "NO_HIDDEN_THING", "")
+intercessor_cue_durations = PackedFloat32Array(0, 0, 0, 10)
+intercessor_cue_lines = PackedStringArray("The broad ground is lost to sight, but a remnant still answers the commission. Begin there.", "The word is given against the mirror that calls smallness defeat.", "Let no hidden accusation survive the narrowing of this garden.", "The remnant is not abandoned. I am praying while you bind and reclaim it.")
+chapter = 13
+title = "The Narrow Remnant"
+briefing = "The second trial wave begins where the spiral closes. Reclaim a hard inner remnant and bind the Fallen that names retreat as wisdom. Two verbs only; neither may be neglected."
+scripture_reference = "Isaiah 10:20–22"
+objective_ids = PackedStringArray("BIND_TARGET", "PURIFY_ZONE")
+target_purity = 0.48
+fail_corruption = 0.84
+starting_demons = 15
+enemy_budget = 30
+spawn_interval = 1.7
+fallen_trigger = 0.18
+synthetic_trigger = 0.38
+corruption_bias = 0.16
+enemy_power = 1.48
+garden_color = Color(0.08, 0.18, 0.1, 1)
+fog_color = Color(0.08, 0.04, 0.1, 1)
+accent_color = Color(0.58, 0.82, 0.35, 1)

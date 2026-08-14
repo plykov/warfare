@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="MissionResource" load_steps=2 format=3]
+
+[ext_resource path="res://missions/mission_resource.gd" type="Script" id="1"]
+
+[resource]
+script = ExtResource("1")
+mission_id = &"THE_FURNACE_AT_NOON"
+corruption_pattern = "EAST_BREACH"
+corruption_seed = 1414
+intercessor_cue_times = PackedFloat32Array(4, 30, 68, 112)
+intercessor_cue_actions = PackedStringArray("VOICE", "PRAY", "DECLARE", "LEGISLATE")
+intercessor_cue_arguments = PackedStringArray("", "", "", "GROUND_HOLDS")
+intercessor_cue_durations = PackedFloat32Array(0, 12, 0, 0)
+intercessor_cue_lines = PackedStringArray("The breach has no night left to hide it. Its furnace is open under the noon.", "I will pray through the heat. Restore the Thin Place and do not answer fire with fear.", "The word is given against the voice beneath the flame. Let it surface.", "The ground holds. Break the idol and endure until the furnace has spent its claim.")
+chapter = 14
+title = "The Furnace at Noon"
+briefing = "An eastern furnace opens against a wounded Thin Place. Restore the anchor, break the fabricated idol, and endure the full watch while the old Voice rises through the breach."
+scripture_reference = "Daniel 3:24–27"
+objective_ids = PackedStringArray("RESTORE_THIN_PLACE", "SURVIVE_WAVES", "BREAK_IDOL")
+target_purity = 0.6
+fail_corruption = 0.82
+restore_integrity = 93.0
+starting_thin_integrity = 24.0
+survive_seconds = 140.0
+time_limit = 235.0
+starting_demons = 16
+enemy_budget = 28
+spawn_interval = 1.6
+fallen_trigger = 0.28
+synthetic_trigger = 0.2
+corruption_bias = 0.18
+enemy_power = 1.35
+boss_kind = &"VOICE_OF_THE_ABYSS"
+boss_name = "THE VOICE BENEATH THE FURNACE"
+boss_trigger_seconds = 66.0
+boss_power = 1.55
+garden_color = Color(0.16, 0.13, 0.055, 1)
+fog_color = Color(0.16, 0.055, 0.025, 1)
+accent_color = Color(1, 0.42, 0.08, 1)

@@ -52,7 +52,7 @@ $checks = @(
     @{
         Name = "balance-sim"
         Scene = "res://tests/balance_sim.tscn"
-        Marker = "GARDEN RECLAIMED BALANCE SIM: 12 commissions x 3 profiles passed"
+        Marker = "GARDEN RECLAIMED BALANCE SIM: 16 commissions x 3 profiles passed"
     }
 )
 
