@@ -57,7 +57,7 @@ that:
 
 | # | Milestone | Touches | What changes |
 |---|---|---|---|
-| **M22** | Ninth arena chapter — dedicated challenge-trial ground | `world/chapter_arena.gd`, `tests/run_tests.gd` | New `recipe_for(8)` geometry, `CHAPTER_LABELS`/`CHAPTER_TINTS` extended to 9 entries, `ChapterArena` switched to select by `mission.chapter` (matching `RankSystem`/`ChapterLandmark`'s existing pattern) instead of raw catalog index. All 8 challenge-trial missions (9-16) move from reusing chapter 7 to the new dedicated chapter 8 — a real visual change, not just new unused geometry. |
+| **M22** | Ninth arena chapter — dedicated challenge-trial ground | `world/chapter_arena.gd`, `tests/run_tests.gd`, `autoload/game_state.gd` | **Done** (PR #30, merged) — implemented directly by Claude Code rather than handed to Codex, since Codex's local branch never reached anywhere reviewable. New "COVENANT GAUNTLET" recipe (16 structures), `CHAPTER_LABELS`/`CHAPTER_TINTS` extended to 9, `ChapterArena` switched to `chapter_index_for(mission)` (matching `RankSystem`/`ChapterLandmark`'s existing pattern) instead of raw catalog index. All 8 challenge-trial missions (9-16) moved from reusing chapter 7 to the dedicated chapter 8. CI green on all 3 platforms. |
 
 **Explicitly not in this scope:** no new mission content (the 16 missions from Phases 2 and 5 stay as-is,
 just pointed at new geometry), no change to `RankSystem` or `ChapterLandmark` (both already correct), no
@@ -118,3 +118,24 @@ works the same way every other chapter's `BoxShape3D` collision already does.
 Same standard as every round: plain pass/fail per verification item, name the specific file/function if
 something's wrong, real manual play check required (arena traversal/readability is a felt check headless CI
 cannot make), one PR for the whole M22 milestone.
+
+---
+
+## Outcome — merged
+
+PR #30 was merged directly by the user on 2026-08-14, immediately after Claude Code opened it as a draft
+and CI came back green on all three platforms (Windows/Linux/macOS).
+
+**Difference from every prior milestone in this project:** this one was implemented by Claude Code itself,
+not Codex. Codex had produced a local implementation twice (per its own handoff reports) but never
+published it anywhere reachable — the branch was never pushed, so there was nothing to independently
+review. Rather than wait for a third attempt, the user asked Claude Code to implement M22 directly. No
+Godot binary was available in that sandbox, so the implementation was verified by hand (diff review,
+manual geometry math against the central-clearance test rule) rather than by running the engine locally —
+the real headless verification only happened once GitHub Actions ran on the pushed branch.
+
+**Open item — not yet resolved, tracked here rather than assumed closed:** no human has played a challenge
+mission in the new Covenant Gauntlet arena yet. CI confirms the geometry is structurally valid (test-passing
+clearance, distinct fingerprint, correct per-mission arena selection); it says nothing about whether the
+arena reads well, whether collision/traversal feels right in live combat, or whether enemy approach and
+Host movement work sensibly around the four gates and lateral walls.
