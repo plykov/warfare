@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# M17 — bash equivalent of verify.ps1 for the Linux/macOS CI legs.
+# M17 — bash equivalent of verify.ps1 for the Linux CI leg (and for manual
+# macOS builds, though CI no longer runs macOS).
 # PowerShell's Start-Process -WindowStyle Hidden only works on Windows, so
 # the non-Windows jobs run this instead. Keep the check list and pass
 # markers identical to verify.ps1's.

@@ -25,7 +25,7 @@ each round independently verified before merging.
 - Eight post-campaign challenge trials (Commissions 09–16, across two trial waves) extend the campaign past
   The Seventh Stands, remixing the six locked objective primitives at higher pressure. They render in a
   dedicated ninth arena, the Covenant Gauntlet, rather than reusing the core campaign's finale chapter.
-- Linux and macOS export presets and CI legs join the existing Windows pipeline.
+- A Linux export preset and CI leg joins the existing Windows pipeline. A macOS export preset exists for manual local builds, but CI does not build or validate it.
 - CI runs 43 deterministic tests plus a 16-commission × 3-profile balance matrix.
 
 ## v0.7.0 — The Full Commission
@@ -121,7 +121,7 @@ All eight trials render in the Covenant Gauntlet, a dedicated arena distinct fro
 15. The Burden of the Host — receive, bind, restore, and reclaim enough ground for a Host procession.
 16. The Last Measure — the second capstone: every locked objective returns under a devouring throne.
 
-## Windows / Linux / macOS builds
+## Windows / Linux builds
 
 Install Godot 4.4.1 and its matching export templates, then create a release build:
 
@@ -131,10 +131,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build_windows.ps1 
 
 ```bash
 ./scripts/build_export.sh "Linux Desktop" build/Garden-Reclaimed.x86_64 godot
-./scripts/build_export.sh "macOS" build/Garden-Reclaimed.zip godot
 ```
 
-The Windows executable is written to `build/Garden-Reclaimed.exe`; Linux to `build/Garden-Reclaimed.x86_64`; macOS to `build/Garden-Reclaimed.zip`. Every pull request produces `Garden-Reclaimed-Windows`, `Garden-Reclaimed-Linux`, and `Garden-Reclaimed-macOS` artifacts, each only after its exported build passes its own smoke tests.
+The Windows executable is written to `build/Garden-Reclaimed.exe`; Linux to `build/Garden-Reclaimed.x86_64`. Every push to `main` and every pull request produces `Garden-Reclaimed-Windows` and `Garden-Reclaimed-Linux` artifacts, each only after its exported build passes its own smoke tests. CI does not build or validate macOS; a macOS export preset still exists for manual local builds (`./scripts/build_export.sh "macOS" build/Garden-Reclaimed.zip godot`).
 
 ## Verification
 
